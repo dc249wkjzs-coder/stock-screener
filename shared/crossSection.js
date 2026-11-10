@@ -24,6 +24,7 @@ const median = (xs) => {
 // see scripts/moat-eval.mjs.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const half = (v) => Math.round(v * 2) / 2;
+const realGm = (x) => (x == null || x >= 0.995 ? null : x);
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
 export function moatScore(m, ctx) {
@@ -51,10 +52,13 @@ export function moatScore(m, ctx) {
   const above15 = roic.filter((x) => x > 0.15).length;
   add('Consistency', above15 >= 5 ? 1 : above15 === 4 ? 0.5 : 0, 1, `${above15} of ${roic.length} years above 15%`);
 
-  const gm = m.grossMargin ?? m.grossMarginYears?.[0];
+  // A gross margin of ~100% means the company reports no cost of revenue (Mastercard does this, Visa
+  // doesn't), not that it has perfect pricing. Those get the neutral industry-level score.
+  const gm = realGm(m.grossMargin ?? m.grossMarginYears?.[0]);
   const indGm = ctx.industryMedianGrossMargin?.[m.industry];
   const gap = gm != null && indGm != null ? gm - indGm : null;
-  add('Pricing power', gap == null ? 0 : gap >= 0.20 ? 2 : gap >= 0.10 ? 1.5 : gap >= 0 ? 1 : 0, 2,
+  if (gm == null && indGm != null) add('Pricing power', 1, 2, 'no cost of revenue reported, so gross margin can\'t be compared; scored as industry level');
+  else add('Pricing power', gap == null ? 0 : gap >= 0.20 ? 2 : gap >= 0.10 ? 1.5 : gap >= 0 ? 1 : 0, 2,
     `gross margin ${pct(gm)} vs ${pct(indGm)} industry median`);
 
   const indOm = ctx.industryMedianOpMargin?.[m.industry];
@@ -105,7 +109,7 @@ export function buildContext(all) {
   const industryMedianOpMargin = {}, industryMedianGrossMargin = {}, industryShare = {}, industrySize = {};
   for (const [ind, list] of Object.entries(byInd)) {
     industryMedianOpMargin[ind] = median(list.map((m) => m.operatingMargin));
-    industryMedianGrossMargin[ind] = median(list.map((m) => m.grossMargin));
+    industryMedianGrossMargin[ind] = median(list.map((m) => realGm(m.grossMargin)));
     const total = list.reduce((s, m) => s + (m.revenueTtm ?? m.revenue ?? 0), 0);
     for (const m of list) if (total > 0 && (m.revenueTtm ?? m.revenue)) industryShare[m.symbol] = (m.revenueTtm ?? m.revenue) / total;
     industrySize[ind] = list.length;
