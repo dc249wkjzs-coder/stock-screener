@@ -1,6 +1,6 @@
 # Stock screener: handover notes
 
-Jameson's stock screener. It grades every US stock above $500M market cap against his written mandate
+Jameson's stock screener. It grades every US-listed stock above $500M market cap (US companies plus foreign companies on NYSE/Nasdaq such as ASML, TSM) against his written mandate
 (8 pillars), with a calculated moat score, Fibonacci entry levels, RSI and portfolio fit.
 Sister project of Life Ledger (same Supabase project and login). Last updated: 2026-11-10.
 See the Life Ledger repo's CLAUDE.md for how to work with Jameson (simple steps, facts not opinions,
@@ -51,6 +51,13 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - `scripts/calibrate.mjs` – pulls live FMP data for given tickers and prints the verdicts
   (`FMP_API_KEY=... NODE_USE_ENV_PROXY=1 node scripts/calibrate.mjs NVDA FTNT ...`);
   with `SAMPLE_OUT=public/sample.json` it rebuilds the demo data.
+- AI impact (`scr_ai`): AI risk 1–10 and AI benefit 1–10 with reasons, written by Claude **in chat** (no API key:
+  Jameson chose not to fund an Anthropic API account). Source of truth `data/ai-ratings.json`; `node scripts/load-ai-ratings.mjs [SYM ...]`
+  prints the upsert SQL to run with the Supabase connector. Rated so far: his holdings + watchlist (34, 2026-11-10).
+  Next agreed step: rate the stocks that pass the mandate once the full data load finishes; others on request.
+- Foreign companies report EPS/estimates in home currency per ordinary share; `metrics.js` converts with
+  fx = price ÷ (FMP trailing P/E × reported EPS) (covers currency and ADR ratio). FMP DCF is dropped for them.
+  Share classes: FMP lists one (GOOG, not GOOGL); `src/lib/data.jsx` ALIASES maps positions to it.
 - `tests/` – `npm test` (RSI, Fibonacci, calibration rules, prospectus classifier, forward EPS).
 
 ## Definitions (also shown on the Mandate rules page)
@@ -64,7 +71,9 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   falling, up to −2) − loss years (−1 each in last 3, −0.5 in years 4–5). Banks/insurers/REITs: no score.
   Calibrated with `scripts/moat-eval.mjs` (Morningstar wide-moat list vs no-moat industries): ~94% of 7+
   scores are wide-moat names; blind spots are slumping brands, SBC-heavy software, low-margin defense.
-  v2 gave DXCM 9 (no pricing-power or erosion check). Operating capital = total assets − cash/investments − goodwill/intangibles − non-debt current liabilities,
+  v2 gave DXCM 9 (no pricing-power or erosion check). Calculated scores are capped at 8 (Jameson's scale:
+  9–10 only for near-irreplaceable positions like ASML, set by him as overrides). Gross margin ≥99.5% = no cost
+  of revenue reported (Mastercard) → scored as industry level. Operating capital = total assets − cash/investments − goodwill/intangibles − non-debt current liabilities,
   floored at 10% of tangible operating assets. Fewer than 4 years of financials → no score (owner sets it).
   History: v1 used tangible equity capital, which gave cash-rich PLTR-type companies capped ±100% returns.
 - Fibonacci = 52-week high and the lowest close in the 52 weeks before it; if price breaks below

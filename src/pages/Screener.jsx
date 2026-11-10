@@ -82,7 +82,7 @@ export default function Screener() {
         <Count label="Pass every pillar" value={counts.pass} tone="text-gain" />
         <Count label="Pass with caution" value={counts.warn} tone="text-warn" />
         <Count label="Fail a pillar" value={counts.fail} tone="text-loss" />
-        <Count label="Data still loading" value={counts.incomplete} tone="text-muted" sub={`of ${d.stocks.length} US stocks over $500M`} />
+        <Count label="Data still loading" value={counts.incomplete} tone="text-muted" sub={`of ${d.stocks.length} US-listed stocks over $500M`} />
       </div>
 
       <Panel pad={false}>

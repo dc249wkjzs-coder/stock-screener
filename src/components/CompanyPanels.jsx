@@ -57,7 +57,7 @@ export function AiPanel({ s }) {
           <div className="grid gap-5 md:grid-cols-2">
             <div>
               <Score label="AI risk" term="ai-risk" v={a.risk} good={false} />
-              <ul className="grid gap-1.5 text-[13.5px] mt-2">{a.risk_reasons.map((r) => <li key={r} className="flex gap-2"><span className="text-loss">−</span><span>{r}</span></li>)}</ul>
+              <ul className="grid gap-1.5 text-[13.5px] mt-2">{a.risk_reasons.map((r) => <li key={r} className="flex gap-2"><span className="text-faint">•</span><span>{r}</span></li>)}</ul>
             </div>
             <div>
               <Score label="AI benefit" term="ai-benefit" v={a.benefit} good />
