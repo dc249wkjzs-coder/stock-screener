@@ -10,6 +10,7 @@ import Screener from './pages/Screener'
 import Stock from './pages/Stock'
 import Rules from './pages/Rules'
 import Status from './pages/Status'
+import Learn from './pages/Learn'
 
 const arrivedToSetPassword = /type=(invite|recovery)/.test(window.location.hash)
 
@@ -42,6 +43,7 @@ function App() {
             <Route path="stock/:symbol" element={<Stock />} />
             <Route path="rules" element={<Rules />} />
             <Route path="status" element={<Status />} />
+            <Route path="learn" element={<Learn />} />
             <Route path="*" element={<Screener />} />
           </Route>
         </Routes>

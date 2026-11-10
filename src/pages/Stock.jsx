@@ -3,12 +3,17 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Plus, ExternalLink } from 'lucide-react'
 import PriceChart from '@/components/PriceChart'
 import PlanPanel from '@/components/PlanPanel'
+import Term from '@/components/Term'
+import { CompanyPanel, NewsPanel } from '@/components/CompanyPanels'
 import { useData } from '@/lib/data'
 import { DEMO, supabase } from '@/lib/supabase'
 import { Panel, Badge, Empty } from '@/components/ui'
 import { STATUS, Verdict, fx, fp, fn, usd, cap } from '@/components/pillarUi'
 import { PILLARS, marginTier } from '@shared/pillars.js'
 import { date as fdate } from '@/lib/format'
+
+const PILLAR_TERM = { moat: 'moat', value: 'peg', eps: 'eps', ebitda: 'ebitda-margin', debt: 'net-debt-ebitda', financing: 'financing', knife: 'falling-knife', newco: 'new-company' }
+const MOAT_TERM = { 'Return on operating capital': 'roic', 'Track record': 'track-record', 'Gross margin level': 'gross-margin', 'Gross margin stability': 'gross-margin', 'Margin premium over peers': 'margin-premium', 'Loss years': 'loss-years' }
 
 export default function Stock() {
   const { symbol } = useParams()
@@ -56,6 +61,11 @@ export default function Stock() {
 
       <PlanPanel s={s} guide={d.guide} />
 
+      <div className="grid gap-5 xl:grid-cols-2 items-start">
+        <CompanyPanel s={s} metrics={m} />
+        <NewsPanel s={s} />
+      </div>
+
       <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
         <Panel title="Mandate fit" subtitle={e.firstFail ? 'The first failed pillar stops the verdict; the rest are shown for context.' : e.overall === 'incomplete' ? `Missing data: ${e.missing.join(', ')}` : 'Every hard pillar passes.'}>
           <ul className="grid gap-2">
@@ -65,7 +75,7 @@ export default function Stock() {
                 <li key={k} className={`flex gap-3 items-start rounded-lg px-3 py-2 ${k === e.firstFail ? 'ring-1 ring-loss/40' : ''}`}>
                   <span className={`shrink-0 mt-0.5 rounded px-1.5 py-px text-[11px] font-semibold w-16 text-center ${STATUS[p.status].soft}`}>{STATUS[p.status].label}</span>
                   <div className="min-w-0">
-                    <div className="font-semibold text-[13.5px]">{label}</div>
+                    <div className="font-semibold text-[13.5px]"><Term id={PILLAR_TERM[k]}>{label}</Term></div>
                     <div className="text-[13px] text-muted">{p.why}</div>
                   </div>
                 </li>
@@ -81,14 +91,14 @@ export default function Stock() {
       <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
         <Panel title="EPS lens and value" subtitle={`Forward P/E uses the ${fdate(s.priceDate)} close of ${usd(s.price)}.`}>
           <Rows rows={[
-            ['Forward P/E (next 12 months)', fx(s.forwardPE)],
-            ['Next-12-month EPS (consensus)', s.ntmEps == null ? '—' : `$${s.ntmEps.toFixed(2)}`],
-            ['Expected EPS growth / year', fp(s.epsGrowth, 1)],
-            ['PEG', fx(s.peg, 2)],
-            ['GAAP EPS, trailing 12 months', s.epsTtm == null ? '—' : `$${s.epsTtm.toFixed(2)}${s.gaapLossTtm ? ' (loss)' : ''}`],
-            ['GAAP EPS growth, last fiscal year', fp(s.gaapEpsGrowthLastFy, 1)],
-            ['Trailing P/E vs own 5-yr average', s.peTtm == null ? '—' : `${fx(s.peTtm)} vs ${fx(s.pe5yAvg)} (${fp(s.peVs5y, 0)})`],
-            ['FMP DCF value', s.dcf == null ? '—' : `${usd(s.dcf)} (${fp(s.dcfUpside, 0)} vs price)`],
+            ['Forward P/E (next 12 months)', fx(s.forwardPE), 'forward-pe'],
+            ['Next-12-month EPS (consensus)', s.ntmEps == null ? '—' : `$${s.ntmEps.toFixed(2)}`, 'ttm-ntm'],
+            ['Expected EPS growth / year', fp(s.epsGrowth, 1), 'eps-growth'],
+            ['PEG', fx(s.peg, 2), 'peg'],
+            ['GAAP EPS, trailing 12 months', s.epsTtm == null ? '—' : `$${s.epsTtm.toFixed(2)}${s.gaapLossTtm ? ' (loss)' : ''}`, 'gaap-adjusted'],
+            ['GAAP EPS growth, last fiscal year', fp(s.gaapEpsGrowthLastFy, 1), 'eps'],
+            ['Trailing P/E vs own 5-yr average', s.peTtm == null ? '—' : `${fx(s.peTtm)} vs ${fx(s.pe5yAvg)} (${fp(s.peVs5y, 0)})`, 'pe-5y'],
+            ['FMP DCF value', s.dcf == null ? '—' : `${usd(s.dcf)} (${fp(s.dcfUpside, 0)} vs price)`, 'dcf'],
           ]} />
           {m?.estimates && (
             <div className="mt-3 text-[12.5px] text-muted">
@@ -100,14 +110,14 @@ export default function Stock() {
         </Panel>
         <Panel title="EBITDA lens and debt">
           <Rows rows={[
-            ['EBITDA margin (TTM)', `${fp(s.ebitdaMargin, 1)} · ${marginTier(s.ebitdaMargin)}`],
-            ['EV / EBITDA', fx(s.evToEbitda)],
-            ['EBITDA growth, last fiscal year', fp(s.ebitdaGrowth, 1)],
-            ['Net debt / EBITDA', s.netDebtToEbitda != null && s.netDebtToEbitda < 0 ? 'Net cash' : fx(s.netDebtToEbitda)],
-            ['Interest coverage', fx(s.interestCoverage)],
-            ['Piotroski F-Score (0–9)', fn(s.piotroski)],
-            ['Altman Z-Score', s.altmanZ == null ? '—' : `${s.altmanZ.toFixed(1)} ${s.altmanZ < 1.8 ? '(distress zone)' : s.altmanZ < 3 ? '(grey zone)' : '(safe zone)'}`],
-            ['Magic Formula rank', s.magicRank ? `#${s.magicRank} of ${s.magicOf}` : 'n/a (financials/utilities or missing data)'],
+            ['EBITDA margin (TTM)', `${fp(s.ebitdaMargin, 1)} · ${marginTier(s.ebitdaMargin)}`, 'ebitda-margin'],
+            ['EV / EBITDA', fx(s.evToEbitda), 'ev-ebitda'],
+            ['EBITDA growth, last fiscal year', fp(s.ebitdaGrowth, 1), 'ebitda'],
+            ['Net debt / EBITDA', s.netDebtToEbitda != null && s.netDebtToEbitda < 0 ? 'Net cash' : fx(s.netDebtToEbitda), 'net-debt-ebitda'],
+            ['Interest coverage', fx(s.interestCoverage), 'interest-coverage'],
+            ['Piotroski F-Score (0–9)', fn(s.piotroski), 'piotroski'],
+            ['Altman Z-Score', s.altmanZ == null ? '—' : `${s.altmanZ.toFixed(1)} ${s.altmanZ < 1.8 ? '(distress zone)' : s.altmanZ < 3 ? '(grey zone)' : '(safe zone)'}`, 'altman'],
+            ['Magic Formula rank', s.magicRank ? `#${s.magicRank} of ${s.magicOf}` : 'n/a (financials/utilities or missing data)', 'magic-formula'],
           ]} />
         </Panel>
         <FitPanel s={s} />
@@ -134,9 +144,9 @@ export default function Stock() {
 function Rows({ rows }) {
   return (
     <dl className="grid gap-1.5 text-[13.5px]">
-      {rows.map(([k, v]) => (
+      {rows.map(([k, v, id]) => (
         <div key={k} className="flex justify-between gap-4 border-b border-line/60 pb-1.5 last:border-0">
-          <dt className="text-muted">{k}</dt><dd className="num text-right">{v}</dd>
+          <dt className="text-muted">{id ? <Term id={id}>{k}</Term> : k}</dt><dd className="num text-right">{v}</dd>
         </div>
       ))}
     </dl>
@@ -155,7 +165,7 @@ function MoatPanel({ s }) {
         <tbody>
           {parts.map((p) => (
             <tr key={p.label} className="border-b border-line/60 last:border-0">
-              <td className="py-1.5 pr-2">{p.label}<div className="text-[12px] text-muted">{p.detail}</div></td>
+              <td className="py-1.5 pr-2"><Term id={MOAT_TERM[p.label]}>{p.label}</Term><div className="text-[12px] text-muted">{p.detail}</div></td>
               <td className="py-1.5 num text-right whitespace-nowrap font-semibold">{p.pts} / {p.max}</td>
             </tr>
           ))}
@@ -204,11 +214,11 @@ function FibPanel({ s, prices }) {
             </tbody>
           </table>
           <div className="text-[13px] grid gap-1.5 content-start">
-            <div><span className="text-muted">Next support:</span> {f.nextSupport ? `${(f.nextSupport.ratio * 100).toFixed(1)}% at ${usd(f.nextSupport.price)} (${fp(f.nextSupport.price / s.price - 1, 1)})` : f.belowSwing ? `none, the price is below the swing low (${usd(lo)})` : 'none'}</div>
+            <div><span className="text-muted"><Term id="fibonacci">Next support</Term>:</span> {f.nextSupport ? `${(f.nextSupport.ratio * 100).toFixed(1)}% at ${usd(f.nextSupport.price)} (${fp(f.nextSupport.price / s.price - 1, 1)})` : f.belowSwing ? `none, the price is below the swing low (${usd(lo)})` : 'none'}</div>
             <div><span className="text-muted">Retraced:</span> {fp(f.retraced, 0)} of the swing</div>
-            <div><span className="text-muted">50-day average:</span> {usd(s.sma50)}{ma(s.sma50)}</div>
-            <div><span className="text-muted">200-day average:</span> {usd(s.sma200)}{ma(s.sma200)}</div>
-            <div><span className="text-muted">RSI (14):</span> {fn(s.rsi14)}{s.rsi14 < 30 ? ' · oversold' : s.rsi14 > 70 ? ' · overbought' : ''}</div>
+            <div><span className="text-muted"><Term id="sma-50">50-day average</Term>:</span> {usd(s.sma50)}{ma(s.sma50)}</div>
+            <div><span className="text-muted"><Term id="sma-200">200-day average</Term>:</span> {usd(s.sma200)}{ma(s.sma200)}</div>
+            <div><span className="text-muted"><Term id="rsi">RSI (14)</Term>:</span> {fn(s.rsi14)}{s.rsi14 < 30 ? ' · oversold' : s.rsi14 > 70 ? ' · overbought' : ''}</div>
             {f.widened && <div className="text-[12.5px] text-muted">The 52-week swing was broken, so the swing low is the lowest close in the last ~2 years.</div>}
             <div className="text-[12px] text-faint">Formula: level = swing high − ratio × (swing high − swing low).</div>
           </div>
@@ -233,11 +243,11 @@ function FitPanel({ s }) {
     <Panel title="Portfolio fit" subtitle="From your Life Ledger positions.">
       <Rows rows={[
         ['Stock book (individual stocks)', usd(d.book)],
-        ['Satellite guide (3% of book)', usd(guide)],
+        ['Satellite guide (3% of book)', usd(guide), 'satellite'],
         ['Your position now', s.owned ? `${usd(holdingValue)} (${fp(holdingValue / d.book, 1)} of book)` : 'None'],
         ['Same industry already owned', ind.length ? `${ind.map((x) => x.symbol).join(', ')} · ${usd(val(ind))}` : 'None'],
         ['Same sector already owned', sec.length ? `${sec.length} stocks · ${usd(val(sec))} (${fp(val(sec) / d.book, 0)})` : 'None'],
-        ['Crash test: QQQ −25% × beta ' + fn(s.beta, 2), drop == null ? '—' : `${fp(drop, 0)} ≈ ${usd(guide * drop)} on a guide-size position`],
+        ['Crash test: QQQ −25% × beta ' + fn(s.beta, 2), drop == null ? '—' : `${fp(drop, 0)} ≈ ${usd(guide * drop)} on a guide-size position`, 'crash-test'],
       ]} />
       <div className="text-[12px] text-faint mt-3">The crash test is a beta estimate, not a forecast; high-multiple names often fall more than beta implies. Funding source for any buy is your call.</div>
     </Panel>

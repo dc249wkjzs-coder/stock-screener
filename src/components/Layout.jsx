@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Filter, SlidersHorizontal, Activity, LogOut, ExternalLink } from 'lucide-react'
+import { Filter, SlidersHorizontal, Activity, LogOut, ExternalLink, BookOpen } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
@@ -8,6 +8,7 @@ const LIFE_LEDGER = 'https://life-ledger-ashen.vercel.app'
 
 export const NAV = [
   { to: '/', label: 'Screener', icon: Filter },
+  { to: '/learn', label: 'Definitions', icon: BookOpen },
   { to: '/rules', label: 'Mandate rules', icon: SlidersHorizontal },
   { to: '/status', label: 'Data status', icon: Activity },
 ]

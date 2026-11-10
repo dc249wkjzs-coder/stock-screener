@@ -36,10 +36,18 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - `supabase/functions/screener-sync/` – the function; `lib/` is a copy of `shared/`
   (`bash scripts/sync-function-lib.sh`). Deploy with the Supabase connector (`deploy_edge_function`,
   `verify_jwt: false`, it checks the `x-job-token` header against Vault `screener_job_token`).
+- `supabase/functions/stock-news/` – live quote + FMP stock news for one symbol, called by the stock page
+  (`verify_jwt: true` and it also checks the caller is a signed-in user, so the public key alone can't use it).
 - `supabase/schema.sql` – tables, RLS, helper functions. `supabase/jobs.sql` – schedules.
 - `src/` – the site. Pillars are evaluated in the browser so rule changes (Mandate rules page,
   saved per user in `scr_user_settings`) apply instantly. Moat overrides: `scr_overrides`.
   "Add to watchlist" inserts a Life Ledger `positions` row (`status = 'prospect'`, target = next Fib level).
+- `shared/valuation.js` – fair value range (DCF, own 5-yr P/E, mandate PEG-2 P/E, analyst target; median = middle),
+  downside reference levels, entry status (fail / incomplete / extended / wait / zone / zone-confirmed / below)
+  and the Fibonacci buy ladder. Confirmation = close above 20-day avg AND RSI > 30; zone = within 3% of a level.
+- `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (57 terms). `<Term id>` / `<Info id>` link
+  any label to `/learn#id`; add a glossary entry for every new number shown on the site.
+- `src/lib/assessment.js` – strengths/weaknesses lines, each a figure vs a fixed threshold.
 - `scripts/calibrate.mjs` – pulls live FMP data for given tickers and prints the verdicts
   (`FMP_API_KEY=... NODE_USE_ENV_PROXY=1 node scripts/calibrate.mjs NVDA FTNT ...`);
   with `SAMPLE_OUT=public/sample.json` it rebuilds the demo data.
@@ -50,8 +58,11 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - Forward P/E = latest close ÷ next-12-month consensus EPS (time-weighted FY1/FY2).
 - PEG = forward P/E ÷ expected EPS growth (annualised consensus FY0 → FY2).
 - Value signal = trailing P/E ≥20% below its own 5-yr average (Starter has no forward-P/E history).
-- Moat (1–10) = return on tangible capital 5-yr avg (3) + consistency (2) + gross margin level (2)
-  + gross margin stability (1) + operating margin premium over industry median (2).
+- Moat (1–10) = return on operating capital 5-yr median (3) + track record, years >15% (2) + gross margin
+  level (2) + stability (1) + operating margin premium over industry median (2) − 1 per operating-loss year.
+  Operating capital = total assets − cash/investments − goodwill/intangibles − non-debt current liabilities,
+  floored at 10% of tangible operating assets. Fewer than 4 years of financials → no score (owner sets it).
+  History: v1 used tangible equity capital, which gave cash-rich PLTR-type companies capped ±100% returns.
 - Fibonacci = 52-week high and the lowest close in the 52 weeks before it; if price breaks below
   that low, the swing low widens to the lowest close in ~2 years of stored history. Levels include 100%.
 

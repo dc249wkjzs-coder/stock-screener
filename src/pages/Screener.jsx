@@ -5,6 +5,7 @@ import { useData } from '@/lib/data'
 import { Panel, Segmented, useSort, Badge, Empty } from '@/components/ui'
 import { PillarDots, Verdict, SetupChip, fx, fp, fn, usd, cap } from '@/components/pillarUi'
 import { SETUP_ORDER } from '@shared/valuation.js'
+import { Info } from '@/components/Term'
 
 const VERDICTS = [['pass', 'Passes'], ['all', 'All'], ['fail', 'Fails'], ['incomplete', 'Incomplete']]
 const HOLD = [['all', 'All'], ['owned', 'Owned'], ['watch', 'Watchlist'], ['none', 'Not held']]
@@ -108,21 +109,21 @@ export default function Screener() {
             <table className="grid-table">
               <thead><tr>
                 {th('symbol', 'Stock')}
-                {th('verdictRank', 'Verdict', 'text-left!')}
-                {th('setupRank', 'Status', 'text-left!')}
-                <th className="text-left!">Pillars</th>
-                {th('moatUsed', 'Moat')}
+                {th('verdictRank', <>Verdict<Info id="pillars" /></>, 'text-left!')}
+                {th('setupRank', <>Status<Info id="buy-zone" /></>, 'text-left!')}
+                <th className="text-left!">Pillars<Info id="pillars" /></th>
+                {th('moatUsed', <>Moat<Info id="moat" /></>)}
                 {th('price', 'Price')}
-                {th('marketCap', 'Mkt cap')}
-                {th('forwardPE', 'Fwd P/E')}
-                {th('peg', 'PEG')}
-                {th('epsGrowth', 'EPS gr.')}
-                {th('ebitdaMargin', 'EBITDA %')}
-                {th('netDebtToEbitda', 'ND/EBITDA')}
-                {th('rsi14', 'RSI')}
-                {th('offHigh', 'Off high')}
-                {th('fibGap', 'To Fib')}
-                {th('fairGap', 'vs fair value')}
+                {th('marketCap', <>Mkt cap<Info id="market-cap" /></>)}
+                {th('forwardPE', <>Fwd P/E<Info id="forward-pe" /></>)}
+                {th('peg', <>PEG<Info id="peg" /></>)}
+                {th('epsGrowth', <>EPS gr.<Info id="eps-growth" /></>)}
+                {th('ebitdaMargin', <>EBITDA %<Info id="ebitda-margin" /></>)}
+                {th('netDebtToEbitda', <>ND/EBITDA<Info id="net-debt-ebitda" /></>)}
+                {th('rsi14', <>RSI<Info id="rsi" /></>)}
+                {th('offHigh', <>Off high<Info id="off-high" /></>)}
+                {th('fibGap', <>To Fib<Info id="fibonacci" /></>)}
+                {th('fairGap', <>vs fair value<Info id="fair-value" /></>)}
               </tr></thead>
               <tbody>
                 {sorted.slice(0, limit).map((s) => (

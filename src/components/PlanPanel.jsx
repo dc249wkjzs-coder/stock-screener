@@ -2,6 +2,9 @@ import { Check, X } from 'lucide-react'
 import { Panel } from './ui'
 import { SETUP, fp, usd } from './pillarUi'
 import { downside } from '@shared/valuation.js'
+import Term from './Term'
+
+const METHOD_TERM = { dcf: 'dcf', histPE: 'pe-5y', pegPE: 'mandate-pe', analyst: 'analyst-target' }
 
 const TONE = {
   'zone-confirmed': 'border-gain/50 bg-gain-soft', zone: 'border-warn/50 bg-accent-soft', wait: 'border-line bg-surface-2',
@@ -15,7 +18,7 @@ export default function PlanPanel({ s, guide }) {
   return (
     <Panel title="Valuation and entry plan" subtitle="Your mandate rules applied to the data. A reading of the numbers, not a forecast or advice.">
       <div className={`rounded-lg border px-4 py-3 mb-5 ${TONE[st.status]}`}>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">{SETUP[st.status].label}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted"><Term id={st.status.startsWith('zone') ? 'confirmation' : st.status === 'fail' ? 'pillars' : 'buy-zone'}>{SETUP[st.status].label}</Term></div>
         <div className="text-lg font-semibold mt-0.5">{st.title}</div>
         <div className="text-[13.5px] text-muted mt-0.5">{st.detail}</div>
         {['zone', 'zone-confirmed', 'wait', 'extended'].includes(st.status) && (
@@ -31,7 +34,7 @@ export default function PlanPanel({ s, guide }) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div>
-          <div className="label mb-2">Fair value</div>
+          <div className="label mb-2"><Term id="fair-value">Fair value</Term></div>
           {fair ? (
             <>
               <RangeBar low={fair.low} mid={fair.mid} high={fair.high} price={s.price} />
@@ -43,7 +46,7 @@ export default function PlanPanel({ s, guide }) {
                 <tbody>
                   {fair.methods.map((m) => (
                     <tr key={m.key} className="border-t border-line/60">
-                      <td className="py-1.5 pr-2">{m.label}<div className="text-faint text-[11.5px]">{m.how}</div></td>
+                      <td className="py-1.5 pr-2"><Term id={METHOD_TERM[m.key]}>{m.label}</Term><div className="text-faint text-[11.5px]">{m.how}</div></td>
                       <td className="py-1.5 num text-right align-top">{usd(m.value)}</td>
                       <td className={`py-1.5 num text-right align-top pl-2 ${m.value > s.price ? 'text-gain' : 'text-loss'}`}>{fp(m.value / s.price - 1, 0)}</td>
                     </tr>
@@ -55,7 +58,7 @@ export default function PlanPanel({ s, guide }) {
         </div>
 
         <div>
-          <div className="label mb-2">Buy levels (Fibonacci only)</div>
+          <div className="label mb-2"><Term id="buy-ladder">Buy levels</Term> (<Term id="fibonacci">Fibonacci</Term> only)</div>
           {st.ladder.length ? (
             <>
               <table className="w-full text-[13px]">
@@ -80,7 +83,7 @@ export default function PlanPanel({ s, guide }) {
         </div>
 
         <div>
-          <div className="label mb-2">How far it could fall (reference levels)</div>
+          <div className="label mb-2"><Term id="pullback">How far it could fall</Term> (reference levels)</div>
           {down ? (
             <>
               <table className="w-full text-[13px]">
