@@ -92,6 +92,7 @@ export function buildMetrics(raw, uni, today = new Date()) {
   }).filter((x) => x != null);
   const roicReportedYears = km.map((r) => num(r.returnOnInvestedCapital)).filter((x) => x != null);
   const grossMarginYears = income.slice(0, 5).map((r) => (r.revenue > 0 ? r.grossProfit / r.revenue : null)).filter((x) => x != null);
+  const opMarginYears = income.slice(0, 5).map((r) => (r.revenue > 0 ? (r.operatingIncome ?? r.ebit) / r.revenue : null)).filter((x) => x != null);
 
   // --- Financing (pillar 6)
   const cutoff = new Date(today.getTime() - 90 * 864e5).toISOString().slice(0, 10);
@@ -144,7 +145,7 @@ export function buildMetrics(raw, uni, today = new Date()) {
     lossYears: income.slice(0, 5).filter((r) => (r.operatingIncome ?? r.ebit) < 0).length,
     incomeYears: Math.min(5, income.length),
     roicReportedAvg: avg(roicReportedYears),
-    grossMarginYears, grossMarginAvg: avg(grossMarginYears), grossMarginStdev: stdev(grossMarginYears),
+    grossMarginYears, grossMarginAvg: avg(grossMarginYears), grossMarginStdev: stdev(grossMarginYears), opMarginYears,
     roicTtm: num(kmT.returnOnInvestedCapitalTTM),
     // financing
     recentRaises: raises, recentShelves: shelves,
