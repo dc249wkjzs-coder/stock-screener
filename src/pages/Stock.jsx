@@ -4,8 +4,8 @@ import { ArrowLeft, Plus, ExternalLink } from 'lucide-react'
 import PriceChart from '@/components/PriceChart'
 import PlanPanel from '@/components/PlanPanel'
 import Term from '@/components/Term'
-import { CompanyPanel, NewsPanel } from '@/components/CompanyPanels'
-import { useData } from '@/lib/data'
+import { CompanyPanel, NewsPanel, AiPanel } from '@/components/CompanyPanels'
+import { useData, canonical } from '@/lib/data'
 import { DEMO, supabase } from '@/lib/supabase'
 import { Panel, Badge, Empty } from '@/components/ui'
 import { STATUS, Verdict, fx, fp, fn, usd, cap } from '@/components/pillarUi'
@@ -18,7 +18,7 @@ const MOAT_TERM = { 'Return on operating capital': 'roic', 'Track record': 'trac
 export default function Stock() {
   const { symbol } = useParams()
   const d = useData()
-  const s = d.bySymbol[symbol?.toUpperCase()]
+  const s = d.bySymbol[canonical(symbol)]
   const [detail, setDetail] = useState(null)
 
   useEffect(() => {
@@ -67,6 +67,8 @@ export default function Stock() {
         <CompanyPanel s={s} metrics={m} />
         <NewsPanel s={s} />
       </div>
+
+      <AiPanel s={s} />
 
       <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
         <Panel title="Mandate fit" subtitle={e.firstFail ? 'The first failed pillar stops the verdict; the rest are shown for context.' : e.overall === 'incomplete' ? `Missing data: ${e.missing.join(', ')}` : 'Every hard pillar passes.'}>

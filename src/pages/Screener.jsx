@@ -128,6 +128,8 @@ export default function Screener() {
                 {th('setupRank', <>Status<Info id="buy-zone" /></>, 'text-left!')}
                 <th className="text-left!">Pillars<Info id="pillars" /></th>
                 {th('moatUsed', <>Moat<Info id="moat" /></>)}
+                {th('aiRisk', <>AI risk<Info id="ai-risk" /></>)}
+                {th('aiBenefit', <>AI benefit<Info id="ai-benefit" /></>)}
                 {th('price', 'Price')}
                 {th('marketCap', <>Mkt cap<Info id="market-cap" /></>)}
                 {th('forwardPE', <>Fwd P/E<Info id="forward-pe" /></>)}
@@ -153,6 +155,8 @@ export default function Screener() {
                     <td className="text-left!"><SetupChip setup={s.setup} />{s.setup.status === 'wait' && <div className="text-[11.5px] text-muted num">{s.setup.title.replace('Wait for ', '')}</div>}</td>
                     <td className="text-left!"><PillarDots pillars={s.eval.pillars} /></td>
                     <td className="num font-semibold">{s.moatUsed ?? '—'}{s.moatOverride != null && <span className="text-accent" title="Your override">*</span>}</td>
+                    <td className={`num ${s.aiRisk >= 7 ? 'text-loss font-semibold' : ''}`}>{s.aiRisk ?? '—'}</td>
+                    <td className={`num ${s.aiBenefit >= 7 ? 'text-gain font-semibold' : ''}`}>{s.aiBenefit ?? '—'}</td>
                     <td className="num">{usd(s.price)}</td>
                     <td className="num text-muted">{cap(s.marketCap)}</td>
                     <td className="num">{fx(s.forwardPE)}</td>

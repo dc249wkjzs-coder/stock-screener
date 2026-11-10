@@ -3,6 +3,10 @@ import { DEMO, supabase } from './supabase'
 import { DEFAULT_RULES, evaluate } from '@shared/pillars.js'
 import { fairValue, entrySetup } from '@shared/valuation.js'
 
+// FMP lists one share class per company; map the other class to it (you may hold GOOGL, the screener has GOOG).
+export const ALIASES = { GOOGL: 'GOOG', 'BRK.B': 'BRK-B', 'BRK.A': 'BRK-B', 'BRK-A': 'BRK-B' }
+export const canonical = (s) => ALIASES[s?.toUpperCase()] || s?.toUpperCase()
+
 const Ctx = createContext(null)
 export const useData = () => useContext(Ctx)
 
@@ -27,10 +31,10 @@ export function DataProvider({ children }) {
     try {
       if (DEMO) {
         const sample = await fetch('/sample.json').then((r) => r.json())
-        setState({ loading: false, error: null, cards: sample.cards, positions: sample.positions, overrides: {}, savedRules: {}, quotes: {}, lastScored: sample.scoredAt })
+        setState({ loading: false, error: null, cards: sample.cards, ai: sample.ai || {}, pending: [], positions: sample.positions, overrides: {}, savedRules: {}, quotes: {}, lastScored: sample.scoredAt })
         return
       }
-      const [rows, pending, positions, overrides, settings, quotes] = await Promise.all([
+      const [rows, pending, positions, overrides, settings, quotes, ai] = await Promise.all([
         selectAll('scr_stocks', 'symbol,card,scored_at,fundamentals_at', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')),
         // Stocks in the universe whose financials haven't been downloaded and scored yet.
         selectAll('scr_stocks', 'symbol,name', (q) => q.eq('active', true).is('card', null).order('symbol')),
@@ -38,11 +42,13 @@ export function DataProvider({ children }) {
         selectAll('scr_overrides', 'symbol,moat,note'),
         supabase.from('scr_user_settings').select('rules').maybeSingle(),
         selectAll('quotes', 'symbol,price'),
+        selectAll('scr_ai', 'symbol,risk,benefit,risk_reasons,benefit_reasons,summary,rated_at,rated_by').catch(() => []),
       ])
       setState({
         loading: false, error: null,
         cards: rows.map((r) => ({ ...r.card, fundamentalsAt: r.fundamentals_at })),
         pending,
+        ai: Object.fromEntries(ai.map((a) => [a.symbol, a])),
         positions,
         overrides: Object.fromEntries(overrides.map((o) => [o.symbol, o])),
         savedRules: settings.data?.rules || {},
@@ -62,7 +68,7 @@ export function DataProvider({ children }) {
     const m = {}
     for (const p of state.positions) {
       if (!p.symbol) continue
-      const k = p.symbol.toUpperCase()
+      const k = canonical(p.symbol)
       m[k] ||= { shares: 0, cost: 0, watch: false }
       if (p.status === 'prospect') m[k].watch = true
       else { m[k].shares += Number(p.shares || 0); m[k].cost += Number(p.shares || 0) * Number(p.avg_cost || 0) }
@@ -86,13 +92,14 @@ export function DataProvider({ children }) {
   // Every stock with its mandate verdict, fair value range and entry status under the current rules.
   const stocks = useMemo(() => state.cards.map((c) => {
     const o = state.overrides[c.symbol]
-    const s = { ...c, moatOverride: o?.moat ?? null }
+    const a = state.ai?.[c.symbol]
+    const s = { ...c, moatOverride: o?.moat ?? null, ai: a || null, aiRisk: a?.risk ?? null, aiBenefit: a?.benefit ?? null }
     const e = evaluate(s, rules)
     const h = held[c.symbol]
     const fair = fairValue(s, rules)
     const setup = entrySetup(s, e, rules, guide || null)
     return { ...s, eval: e, moatUsed: e.moat, owned: (h?.shares || 0) > 0, watch: !!h?.watch, shares: h?.shares || 0, fair, setup }
-  }), [state.cards, state.overrides, rules, held, guide])
+  }), [state.cards, state.overrides, state.ai, rules, held, guide])
 
   const bySymbol = useMemo(() => Object.fromEntries(stocks.map((s) => [s.symbol, s])), [stocks])
 

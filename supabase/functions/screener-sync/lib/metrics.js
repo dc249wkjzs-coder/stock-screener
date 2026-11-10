@@ -45,12 +45,28 @@ export function buildMetrics(raw, uni, today = new Date()) {
   const dcfRow = one(raw.dcf) || {};
   const price = num(uni?.price) ?? num(profile?.price);
 
-  // --- EPS lens
-  const fwd = forwardEps(raw.estimates, today);
-  const forwardPE = fwd && fwd.ntmEps > 0 && price ? price / fwd.ntmEps : null;
-  const epsTtm = num(rT.netIncomePerShareTTM);
+  // --- Currency. Foreign companies listed in New York (ASML, TSM) report EPS and estimates in their home
+  // currency per ordinary share, while the price is in US dollars per listed share. FMP's own trailing P/E
+  // is already consistent, so price ÷ (P/E × reported EPS) gives the factor that turns reported EPS into
+  // dollars per listed share (covers both the exchange rate and the ADR ratio).
+  const reportedCurrency = income[0]?.reportedCurrency || 'USD';
+  const foreign = reportedCurrency !== 'USD';
   const peTtm = num(rT.priceToEarningsRatioTTM);
-  const gaapLossTtm = epsTtm != null ? epsTtm < 0 : null;
+  const epsReported = num(rT.netIncomePerShareTTM);
+  const fx = !foreign ? 1 : peTtm > 0 && epsReported > 0 && price ? price / (peTtm * epsReported) : null;
+  const toUsd = (x) => (x == null || fx == null ? null : x * fx);
+
+  // --- EPS lens
+  const fwdRaw = forwardEps(raw.estimates, today);
+  const fwd = fwdRaw && fx != null ? {
+    ...fwdRaw, ntmEps: toUsd(fwdRaw.ntmEps),
+    fy0: fwdRaw.fy0 && { ...fwdRaw.fy0, eps: toUsd(fwdRaw.fy0.eps) },
+    fy1: { ...fwdRaw.fy1, eps: toUsd(fwdRaw.fy1.eps) },
+    fy2: fwdRaw.fy2 && { ...fwdRaw.fy2, eps: toUsd(fwdRaw.fy2.eps) },
+  } : null;
+  const forwardPE = fwd && fwd.ntmEps > 0 && price ? price / fwd.ntmEps : null;
+  const epsTtm = foreign ? toUsd(epsReported) : epsReported;
+  const gaapLossTtm = epsReported != null ? epsReported < 0 : null;
   const lastFy = income[0], prevFy = income[1];
   const gaapEpsGrowthLastFy = lastFy && prevFy && prevFy.epsDiluted > 0 ? lastFy.epsDiluted / prevFy.epsDiluted - 1 : null;
   const peg = forwardPE != null && fwd?.growth > 0 ? forwardPE / (fwd.growth * 100) : null;
@@ -112,7 +128,8 @@ export function buildMetrics(raw, uni, today = new Date()) {
 
   const ipoDate = profile?.ipoDate || null;
   const yearsListed = ipoDate ? daysBetween(ipoDate, today) / 365 : null;
-  const dcf = num(dcfRow.dcf);
+  // FMP's DCF for foreign reporters mixes currencies (ASML came out at a fifth of its price), so it's left out.
+  const dcf = foreign ? null : num(dcfRow.dcf);
   const pt = one(raw.priceTarget) || {};
 
   return {
@@ -121,7 +138,7 @@ export function buildMetrics(raw, uni, today = new Date()) {
     sector: profile?.sector || uni?.sector || null,
     industry: profile?.industry || uni?.industry || null,
     marketCap: num(uni?.marketCap) ?? num(profile?.marketCap),
-    price, priceDate: today.toISOString().slice(0, 10),
+    price, priceDate: today.toISOString().slice(0, 10), reportedCurrency, fxToUsd: foreign ? fx : null,
     beta: num(uni?.beta) ?? num(profile?.beta),
     ipoDate, yearsListed,
     company: profile ? { description: profile.description || null, ceo: profile.ceo || null, website: profile.website || null, employees: num(Number(profile.fullTimeEmployees)) , hq: [profile.city, profile.state].filter(Boolean).join(', ') || null } : null,

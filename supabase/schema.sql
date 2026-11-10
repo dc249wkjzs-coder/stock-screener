@@ -115,3 +115,18 @@ returns text language sql security definer set search_path = public, vault as $$
 $$;
 revoke all on function public.scr_secret(text) from public, anon, authenticated;
 grant execute on function public.scr_secret(text) to service_role;
+
+-- AI impact scores (risk and benefit, 1-10, with reasons). Written by Claude in chat on request;
+-- readable by any signed-in user, written only with the service role.
+create table if not exists public.scr_ai (
+  symbol text primary key,
+  risk smallint not null check (risk between 1 and 10),
+  benefit smallint not null check (benefit between 1 and 10),
+  risk_reasons text[] not null default '{}',
+  benefit_reasons text[] not null default '{}',
+  summary text,
+  rated_at timestamptz not null default now(),
+  rated_by text not null default 'Claude (in chat)'
+);
+alter table public.scr_ai enable row level security;
+create policy "read ai" on public.scr_ai for select to authenticated using (true);

@@ -40,6 +40,36 @@ export function CompanyPanel({ s, metrics }) {
   )
 }
 
+// AI risk and benefit: Claude's written judgement, stored in scr_ai.
+export function AiPanel({ s }) {
+  const a = s.ai
+  const Score = ({ label, term, v, good }) => (
+    <div className="flex items-baseline gap-2">
+      <span className={`num text-2xl font-semibold ${v >= 7 ? (good ? 'text-gain' : 'text-loss') : ''}`}>{v}</span>
+      <span className="text-muted text-[13px]">/10 <Term id={term}>{label}</Term></span>
+    </div>
+  )
+  return (
+    <Panel title="AI impact" subtitle={a ? `Rated by ${a.rated_by} on ${new Date(a.rated_at).toLocaleDateString('en-US', { dateStyle: 'medium' })}. A judgement from what the company does, not a calculation.` : null}>
+      {!a ? <p className="text-muted text-[13.5px]">Not rated yet. Ask Claude in chat to rate {s.symbol}.</p> : (
+        <>
+          {a.summary && <p className="text-[14px] leading-relaxed mb-4">{a.summary}</p>}
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <Score label="AI risk" term="ai-risk" v={a.risk} good={false} />
+              <ul className="grid gap-1.5 text-[13.5px] mt-2">{a.risk_reasons.map((r) => <li key={r} className="flex gap-2"><span className="text-loss">−</span><span>{r}</span></li>)}</ul>
+            </div>
+            <div>
+              <Score label="AI benefit" term="ai-benefit" v={a.benefit} good />
+              <ul className="grid gap-1.5 text-[13.5px] mt-2">{a.benefit_reasons.map((r) => <li key={r} className="flex gap-2"><span className="text-gain">+</span><span>{r}</span></li>)}</ul>
+            </div>
+          </div>
+        </>
+      )}
+    </Panel>
+  )
+}
+
 // Today's move and the latest headlines, fetched live when the page opens.
 export function NewsPanel({ s }) {
   const [data, setData] = useState(null)

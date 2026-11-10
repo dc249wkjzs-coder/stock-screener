@@ -31,13 +31,15 @@ export async function fmpGet(path, params, apiKey) {
   throw new Error(`FMP ${path}: rate limited`);
 }
 
-// The whole universe in one call: US stocks above a market cap floor, with today's price.
+// The whole universe in one call: stocks above a market cap floor, with today's price.
+// US companies on any exchange except OTC, plus foreign companies listed on NYSE/Nasdaq (ASML, TSM, ...).
 export async function fetchUniverse(apiKey, minCap = 500_000_000) {
   const rows = await fmpGet('company-screener', {
-    marketCapMoreThan: String(minCap), country: 'US', isEtf: 'false', isFund: 'false',
+    marketCapMoreThan: String(minCap), isEtf: 'false', isFund: 'false',
     isActivelyTrading: 'true', limit: '10000',
   }, apiKey);
-  return rows.filter((r) => r.exchangeShortName !== 'OTC' && r.price > 0);
+  const usListed = /^(NYSE|NASDAQ|AMEX)$/;
+  return rows.filter((r) => r.price > 0 && (r.country === 'US' ? r.exchangeShortName !== 'OTC' : usListed.test(r.exchangeShortName || '')));
 }
 
 const isoDaysAgo = (d, today = new Date()) => new Date(today.getTime() - d * 864e5).toISOString().slice(0, 10);
