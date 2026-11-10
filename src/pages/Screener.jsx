@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { Panel, Segmented, useSort, Badge, Empty } from '@/components/ui'
@@ -17,6 +17,7 @@ const TOGGLES = [
 
 export default function Screener() {
   const d = useData()
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [q, setQ] = useState('')
   const [limit, setLimit] = useState(100)
@@ -117,9 +118,9 @@ export default function Screener() {
               </tr></thead>
               <tbody>
                 {sorted.slice(0, limit).map((s) => (
-                  <tr key={s.symbol}>
+                  <tr key={s.symbol} className="cursor-pointer" onClick={() => navigate(`/stock/${s.symbol}`)} title={`Open ${s.symbol}`}>
                     <td className="max-w-[230px]">
-                      <Link to={`/stock/${s.symbol}`} className="font-semibold hover:text-accent">{s.symbol}</Link>
+                      <Link to={`/stock/${s.symbol}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-accent hover:underline">{s.symbol}</Link>
                       {s.owned && <span className="ml-1.5"><Badge tone="accent">Owned</Badge></span>}
                       {!s.owned && s.watch && <span className="ml-1.5"><Badge>Watch</Badge></span>}
                       <div className="text-[12px] text-muted truncate">{s.name}</div>
@@ -147,7 +148,7 @@ export default function Screener() {
         )}
       </Panel>
       <p className="text-[12.5px] text-faint px-1">
-        Pillar dots, in order: moat, value, EPS, EBITDA, debt, financing. Hover a dot for the reason. "To Fib" is how far the price is above the next Fibonacci support. "DCF gap" is FMP's DCF value vs the price. Not investment advice.
+        Click any row to open the stock's page with its chart, Fibonacci levels and moat breakdown. Pillar dots, in order: moat, value, EPS, EBITDA, debt, financing. Hover a dot for the reason. "To Fib" is how far the price is above the next Fibonacci support. "DCF gap" is FMP's DCF value vs the price. Not investment advice.
       </p>
     </div>
   )
