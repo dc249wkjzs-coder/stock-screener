@@ -183,7 +183,7 @@ function MoatPanel({ s }) {
           <input className="input flex-1 min-w-40" placeholder="Why (e.g. choke point in…)" value={note} onChange={(e) => setNote(e.target.value)} />
           <button className="btn btn-primary" onClick={() => d.saveOverride(s.symbol, val === '' ? null : Number(val), note)}>Save</button>
         </div>
-        <div className="text-[12px] text-faint">The calculation measures the results of a moat (returns and margins), so it can miss a true choke point or over-rate a few strong years.</div>
+        <div className="text-[12px] text-faint">The calculation measures the results of a moat (returns and margins), so it can miss a true choke point or over-rate a few strong years. It stops at 8: a 9 or 10 (a near-irreplaceable position) is yours to set.</div>
       </div>
     </Panel>
   )

@@ -1,5 +1,5 @@
 // Scores that compare each stock with the rest of the universe:
-// the calculated moat score (1-10) and the Magic Formula rank.
+// the calculated moat score (1-8) and the Magic Formula rank.
 
 const median = (xs) => {
   const v = xs.filter((x) => x != null).sort((a, b) => a - b);
@@ -8,7 +8,7 @@ const median = (xs) => {
   return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
 };
 
-// Moat score v3, max 10. A moat leaves fingerprints in the numbers: high returns on capital that hold up
+// Moat score v3 (calculated max 8). A moat leaves fingerprints in the numbers: high returns on capital that hold up
 // in bad years, prices and margins above the industry, and margins that don't erode.
 //   Return level        0–3   median return on operating capital: 8% → 0, 40%+ → 3 (straight line between)
 //   Durability          0–2   second-worst year of the last five (one shock allowed): 5% → 0, 20%+ → 2
@@ -18,12 +18,15 @@ const median = (xs) => {
 //   Erosion            −2–0   gross margin down 5+ pts over the period = −1 (2.5+ = −0.5); operating margin
 //                             down 5+ pts = −0.5; latest return under 60% of the earlier median = −0.5
 //   Loss years                operating loss in the last 3 years = −1 each; 4–5 years ago = −0.5 each
-// Rounded to the nearest whole number, between 1 and 10.
+// Rounded to the nearest whole number, between 1 and 8. Calculated scores stop at 8 ("elite numbers"):
+// 9-10 mean a near-irreplaceable position (ASML-type choke point), which 5 years of figures can't show,
+// so only the owner sets them (owner's scale, 2026-11-10: ASML 9+, LIN ~8, Visa/Mastercard 8+).
 // Fewer than 4 years of financials, or a bank/insurer (no gross margin to read): no score, the owner sets one.
 // Calibrated against Morningstar's wide-moat list (VanEck MOAT holdings) and textbook no-moat industries:
 // see scripts/moat-eval.mjs.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const half = (v) => Math.round(v * 2) / 2;
+export const MOAT_CALC_MAX = 8;
 const realGm = (x) => (x == null || x >= 0.995 ? null : x);
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
@@ -93,7 +96,8 @@ export function moatScore(m, ctx) {
     `operating loss in ${recent} of the last 3 years${older ? ` and ${older} of the 2 before` : ''}`);
 
   const total = parts.reduce((s, p) => s + p.pts, 0);
-  return { score: clamp(Math.round(total), 1, 10), raw: total, parts };
+  // The numbers can show an elite business (8) but not whether it is irreplaceable; 9-10 are set by the owner.
+  return { score: clamp(Math.round(total), 1, MOAT_CALC_MAX), raw: total, parts, capped: Math.round(total) > MOAT_CALC_MAX };
 }
 
 // Context built once over the whole universe: industry medians and revenue shares.

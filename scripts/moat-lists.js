@@ -5,5 +5,5 @@ export const WIDE = ['STZ', 'BF-B', 'ABNB', 'NVDA', 'BMY', 'ZBH', 'MDLZ', 'KVUE'
 // homebuilders, oil & gas producers, trucking.
 export const COMMODITY = ['AAL', 'DAL', 'UAL', 'LUV', 'JBLU', 'F', 'GM', 'AN', 'LAD', 'PAG', 'KMX', 'M', 'KSS', 'DDS', 'CLF', 'NUE', 'STLD', 'DHI', 'LEN', 'KBH', 'TOL', 'DVN', 'APA', 'OXY', 'EOG', 'KNX', 'WERN', 'JBHT', 'ODFL'];
 // Names under discussion and Jameson's holdings.
-export const OTHERS = ['DXCM', 'PODD', 'ABT', 'PLTR', 'SPCX', 'V', 'MA', 'SPGI', 'MCO', 'GOOGL', 'KLAC', 'LRCX', 'ASML', 'LLY', 'SNPS', 'AXON', 'GEV', 'BWXT', 'TDG', 'ROK', 'COST', 'WMT', 'OKTA', 'CRWD', 'ANET', 'AAPL', 'ISRG', 'MCD', 'TSM', 'TER', 'CAT', 'GD', 'NFLX', 'SNOW', 'ALGM'];
+export const OTHERS = ['DXCM', 'LIN', 'PODD', 'ABT', 'PLTR', 'SPCX', 'V', 'MA', 'SPGI', 'MCO', 'GOOGL', 'KLAC', 'LRCX', 'ASML', 'LLY', 'SNPS', 'AXON', 'GEV', 'BWXT', 'TDG', 'ROK', 'COST', 'WMT', 'OKTA', 'CRWD', 'ANET', 'AAPL', 'ISRG', 'MCD', 'TSM', 'TER', 'CAT', 'GD', 'NFLX', 'SNOW', 'ALGM'];
 

@@ -8,7 +8,7 @@ export function assess(s) {
   const add = (list, text, term) => list.push({ text, term })
   const m = s.moatUsed
 
-  if (m >= 8) add(good, `Strong moat by the numbers (${m}/10): high, steady returns on capital and margins above its industry.`, 'moat')
+  if (m >= 8) add(good, `Strong moat (${m}/10): high, steady returns on capital and margins above its industry.`, 'moat')
   else if (m != null && m <= 5) add(bad, `Weak moat by the numbers (${m}/10): returns or margins don't stand out from competitors.`, 'moat')
   if (s.moat?.score == null && s.moatOverride == null) add(bad, 'Too little financial history to calculate a moat; it needs your judgement.', 'new-company')
 

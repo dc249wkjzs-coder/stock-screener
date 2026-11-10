@@ -160,11 +160,11 @@ export const TERMS = {
     inScreener: 'Pillar 5: lets a 5–7x leveraged company pass with caution if coverage is 8x or more.',
   },
   moat: {
-    term: 'Moat (calculated score 1–10)',
+    term: 'Moat (score 1–10)',
     what: 'A lasting competitive advantage (brand, network, switching costs, scale, patents, a choke point) that keeps rivals from taking the profits. The screener scores it from the financial results a moat leaves behind.',
     why: 'Pillar 1, ranked first in your mandate. Without a moat, high profits attract competitors and fade.',
-    example: 'Visa: very high returns on capital every year, 80% gross margins, far above peers → 10. Ford: thin margins and low returns → 1.',
-    inScreener: 'Points: return on operating capital (3), track record (2), gross margin level (2) and stability (1), margin premium over peers (2), minus 1 per loss year. Fewer than 4 years of financials gets no score; you set it. You can override any score.',
+    example: 'Visa: very high returns on capital every year, 80% gross margins, far above peers → 8 (the calculated maximum). Ford: thin margins and low returns → 1. ASML\'s near-monopoly in EUV machines is what a 9 means, and only you can give that.',
+    inScreener: 'Points: return on operating capital (3), durability in the second-worst year (2), consistency (1), gross margin vs industry (2), operating margin vs industry (2), minus erosion and loss years. Calculated scores stop at 8; 9–10 are yours to set for a near-irreplaceable position. Fewer than 4 years of financials gets no score; you set it.',
   },
   roic: {
     term: 'Return on operating capital',
