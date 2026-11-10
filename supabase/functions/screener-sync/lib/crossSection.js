@@ -9,17 +9,19 @@ const median = (xs) => {
 };
 
 // Moat score v3, max 10. A moat leaves fingerprints in the numbers: high returns on capital that hold up
-// in the worst year, prices that beat the industry, margins that don't erode, and a big share of the market.
+// in bad years, prices and margins above the industry, and margins that don't erode.
 //   Return level        0–3   median return on operating capital: 8% → 0, 40%+ → 3 (straight line between)
-//   Durability          0–2   worst year of the last five: 5% → 0, 20%+ → 2
-//   Pricing power       0–2   gross margin ≥50% = 1 (≥35% = 0.5) + premium over the industry's median: +20 pts → +1
+//   Durability          0–2   second-worst year of the last five (one shock allowed): 5% → 0, 20%+ → 2
+//   Consistency         0–1   years with returns above 15%: 5 of 5 = 1, 4 = 0.5
+//   Pricing power       0–2   gross margin vs its industry's median: at/above = 1, +10 pts = 1.5, +20 pts = 2
 //   Margin premium      0–2   operating margin vs industry median: ≥2× = 2, ≥1.3× = 1, above = 0.5
-//   Market position     0–1   share of its industry's revenue (US-listed peers): ≥30% = 1, ≥15% = 0.5
 //   Erosion            −2–0   gross margin down 5+ pts over the period = −1 (2.5+ = −0.5); operating margin
 //                             down 5+ pts = −0.5; latest return under 60% of the earlier median = −0.5
-//   Loss years          −1 each (operating loss in any of the last five years)
+//   Loss years                operating loss in the last 3 years = −1 each; 4–5 years ago = −0.5 each
 // Rounded to the nearest whole number, between 1 and 10.
 // Fewer than 4 years of financials, or a bank/insurer (no gross margin to read): no score, the owner sets one.
+// Calibrated against Morningstar's wide-moat list (VanEck MOAT holdings) and textbook no-moat industries:
+// see scripts/moat-eval.mjs.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const half = (v) => Math.round(v * 2) / 2;
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -29,7 +31,7 @@ export function moatScore(m, ctx) {
   if (years < 4) {
     return { score: null, raw: null, parts: [], reason: `Only ${years} year${years === 1 ? '' : 's'} of financials. Too little history to calculate a moat; set your own score.` };
   }
-  if (/Banks|Insurance|Financial - Credit|Mortgage|REIT/.test(m.industry || '') || !(m.grossMarginYears?.length >= 3)) {
+  if (/Banks|Insurance|Mortgage|REIT/.test(m.industry || '') || !(m.grossMarginYears?.length >= 3)) {
     return { score: null, raw: null, parts: [], reason: 'Banks, insurers and similar lenders don\'t report the margins this formula reads; set your own score.' };
   }
   const parts = [];
@@ -42,25 +44,24 @@ export function moatScore(m, ctx) {
   add('Return on operating capital', med == null ? 0 : clamp(((med - 0.08) / 0.32) * 3, 0, 3), 3,
     med == null ? 'n/a' : `median ${med >= 1 ? '>100%' : pct(med)}; yearly ${roic.map(yr).join(', ')} (newest first)`);
 
-  const worst = roic.length ? Math.min(...roic) : null;
-  add('Durability (worst year)', worst == null ? 0 : clamp(((worst - 0.05) / 0.15) * 2, 0, 2), 2,
-    worst == null ? 'n/a' : `lowest return in ${roic.length} years: ${yr(worst)}`);
+  const sorted = [...roic].sort((a, b) => a - b);
+  const second = sorted.length >= 3 ? sorted[1] : sorted[0] ?? null;
+  add('Durability', second == null ? 0 : clamp(((second - 0.05) / 0.15) * 2, 0, 2), 2,
+    second == null ? 'n/a' : `second-worst year ${yr(second)} (worst ${yr(sorted[0])}); one bad year is allowed`);
+  const above15 = roic.filter((x) => x > 0.15).length;
+  add('Consistency', above15 >= 5 ? 1 : above15 === 4 ? 0.5 : 0, 1, `${above15} of ${roic.length} years above 15%`);
 
   const gm = m.grossMargin ?? m.grossMarginYears?.[0];
   const indGm = ctx.industryMedianGrossMargin?.[m.industry];
-  const gmLevel = gm >= 0.5 ? 1 : gm >= 0.35 ? 0.5 : 0;
-  const gmPrem = gm != null && indGm != null ? clamp((gm - indGm) / 0.20, 0, 1) : 0;
-  add('Pricing power', gmLevel + gmPrem, 2, `gross margin ${pct(gm)} vs ${pct(indGm)} industry median`);
+  const gap = gm != null && indGm != null ? gm - indGm : null;
+  add('Pricing power', gap == null ? 0 : gap >= 0.20 ? 2 : gap >= 0.10 ? 1.5 : gap >= 0 ? 1 : 0, 2,
+    `gross margin ${pct(gm)} vs ${pct(indGm)} industry median`);
 
   const indOm = ctx.industryMedianOpMargin?.[m.industry];
   const om = m.operatingMargin;
   const ratio = om > 0 && indOm > 0 ? om / indOm : null;
   add('Margin premium over peers', om == null || indOm == null || om <= 0 ? 0 : ratio >= 2 ? 2 : ratio >= 1.3 ? 1 : om > indOm ? 0.5 : 0, 2,
     `${pct(om)} operating margin vs ${pct(indOm)} median of ${ctx.industrySize?.[m.industry] ?? '?'} ${m.industry} stocks`);
-
-  const share = ctx.industryShare?.[m.symbol];
-  add('Market position', share >= 0.30 ? 1 : share >= 0.15 ? 0.5 : 0, 1,
-    share == null ? 'n/a' : `${pct(share)} of US-listed ${m.industry} revenue`);
 
   // Erosion: compare the two oldest years with the two newest.
   let erosion = 0; const why = [];
@@ -80,8 +81,12 @@ export function moatScore(m, ctx) {
   }
   add('Erosion', Math.max(-2, erosion), 0, why.length ? why.join('; ') : 'no erosion in margins or returns');
 
-  const losses = m.lossYears || 0;
-  if (losses) add('Loss years', -losses, 0, `operating loss in ${losses} of the last ${m.incomeYears || 5} years`);
+  const om5 = m.opMarginYears || [];
+  const recent = om5.slice(0, 3).filter((x) => x < 0).length, older = om5.slice(3).filter((x) => x < 0).length;
+  // Older stored data has only a loss-year count; use it until the stock is refreshed.
+  if (!om5.length && m.lossYears) add('Loss years', -m.lossYears, 0, `operating loss in ${m.lossYears} of the last ${m.incomeYears || 5} years`);
+  if (recent || older) add('Loss years', -(recent + older * 0.5), 0,
+    `operating loss in ${recent} of the last 3 years${older ? ` and ${older} of the 2 before` : ''}`);
 
   const total = parts.reduce((s, p) => s + p.pts, 0);
   return { score: clamp(Math.round(total), 1, 10), raw: total, parts };

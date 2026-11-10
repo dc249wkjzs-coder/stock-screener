@@ -19,7 +19,7 @@ async function selectAll(table, cols, filter) {
 }
 
 export function DataProvider({ children }) {
-  const [state, setState] = useState({ loading: true, error: null, cards: [], positions: [], overrides: {}, savedRules: {}, quotes: {}, lastScored: null })
+  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], positions: [], overrides: {}, savedRules: {}, quotes: {}, lastScored: null })
   const [toast, setToast] = useState(null)
   const flash = useCallback((msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200) }, [])
 
@@ -30,8 +30,10 @@ export function DataProvider({ children }) {
         setState({ loading: false, error: null, cards: sample.cards, positions: sample.positions, overrides: {}, savedRules: {}, quotes: {}, lastScored: sample.scoredAt })
         return
       }
-      const [rows, positions, overrides, settings, quotes] = await Promise.all([
+      const [rows, pending, positions, overrides, settings, quotes] = await Promise.all([
         selectAll('scr_stocks', 'symbol,card,scored_at,fundamentals_at', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')),
+        // Stocks in the universe whose financials haven't been downloaded and scored yet.
+        selectAll('scr_stocks', 'symbol,name', (q) => q.eq('active', true).is('card', null).order('symbol')),
         selectAll('positions', 'id,symbol,status,shares,avg_cost,asset_class,name', (q) => q.eq('asset_class', 'stock')),
         selectAll('scr_overrides', 'symbol,moat,note'),
         supabase.from('scr_user_settings').select('rules').maybeSingle(),
@@ -40,6 +42,7 @@ export function DataProvider({ children }) {
       setState({
         loading: false, error: null,
         cards: rows.map((r) => ({ ...r.card, fundamentalsAt: r.fundamentals_at })),
+        pending,
         positions,
         overrides: Object.fromEntries(overrides.map((o) => [o.symbol, o])),
         savedRules: settings.data?.rules || {},

@@ -41,6 +41,8 @@ export default function Screener() {
     return d.stocks.filter((s) => {
       if (term && !s.symbol.includes(term) && !(s.name || '').toUpperCase().includes(term)) return false
       const o = s.eval.overall
+      // A typed search looks across every verdict, so a named stock is never hidden by the Pass filter.
+      if (term) return true
       if (verdict === 'pass' && !(o === 'pass' || o === 'pass-warn')) return false
       if (verdict === 'fail' && o !== 'fail') return false
       if (verdict === 'incomplete' && o !== 'incomplete') return false
@@ -60,6 +62,12 @@ export default function Screener() {
       return true
     }).map((s) => ({ ...s, fibGap: s.fibSupport ? s.price / s.fibSupport.price - 1 : null, verdictRank: { pass: 0, 'pass-warn': 1, incomplete: 2, fail: 3 }[s.eval.overall], setupRank: SETUP_ORDER[s.setup.status], fairGap: s.fair?.vsMid ?? null }))
   }, [d.stocks, q, verdict, hold, sector, minMoat, params]) // eslint-disable-line
+
+  const waitingMatches = useMemo(() => {
+    const term = q.trim().toUpperCase()
+    if (!term) return []
+    return (d.pending || []).filter((p) => p.symbol.includes(term) || (p.name || '').toUpperCase().includes(term))
+  }, [d.pending, q])
 
   const { sorted, th } = useSort(rows, 'marketCap')
   const counts = useMemo(() => {
@@ -104,6 +112,13 @@ export default function Screener() {
           </div>
         </div>
 
+        {waitingMatches.length > 0 && (
+          <div className="px-5 pb-3 text-[13px] text-muted">
+            Still downloading: {waitingMatches.slice(0, 8).map((p, i) => <span key={p.symbol}>{i ? ', ' : ''}<Link to={`/stock/${p.symbol}`} className="font-semibold text-fg">{p.symbol}</Link> {p.name}</span>)}
+            {waitingMatches.length > 8 ? ` and ${waitingMatches.length - 8} more` : ''}. Their financials arrive within a few hours.
+          </div>
+        )}
+        {q.trim() && <div className="px-5 pb-3 text-[12.5px] text-faint">Searching all stocks; the Pass/Fail and other filters apply again when the search box is empty.</div>}
         {rows.length === 0 ? <Empty title="No stocks match">Loosen a filter, or check Data status if the first load is still running.</Empty> : (
           <div className="overflow-x-auto max-h-[70vh]">
             <table className="grid-table">

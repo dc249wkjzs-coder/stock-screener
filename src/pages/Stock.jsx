@@ -33,6 +33,8 @@ export default function Stock() {
     }))
   }, [s?.symbol]) // eslint-disable-line
 
+  const waiting = !s && d.pending?.find((p) => p.symbol === symbol?.toUpperCase())
+  if (waiting) return <Empty title={`${waiting.symbol} · ${waiting.name || ''}`}>This stock is in the screener, but its financials are still downloading (the first full load of all 2,350+ stocks takes a few hours). Check back later; nothing needs doing on your side.</Empty>
   if (!s) return <Empty title={`${symbol} isn't in the screener`}>It may be below $500M market cap, not US-listed, an ETF, or its data hasn't loaded yet.</Empty>
   const e = s.eval
   const m = detail?.metrics

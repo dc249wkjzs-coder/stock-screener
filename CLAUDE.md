@@ -19,7 +19,7 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   as `fmp_api_key`. Never put it in code or Vercel.
 - **Supabase project:** `life- ledger` (`vwgckbpdtqwkxnogbjtq`), org on the **Pro** plan.
 - **Jobs** (`supabase/jobs.sql`, pg_cron, times UTC): `universe` 22:15 weekdays (1 call: the full list +
-  closes), `fundamentals` every 3 min (20 stocks × 11 calls, refreshes anything older than 7 days),
+  closes), `fundamentals` every 2 min (25 stocks × 12 calls, `scr_run('fundamentals','&limit=25')`; refreshes anything older than 7 days),
   `backfill` every 3 min offset 1 (price history for new listings), `score` hourly at :50 (no FMP calls).
   Each run is logged in `scr_runs`. Start one by hand: `select public.scr_run('score');`
 - **SEC filing reader (pillar 6):** reads 424B/S-1 covers to tell bond issues from stock sales,
@@ -58,9 +58,13 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - Forward P/E = latest close ÷ next-12-month consensus EPS (time-weighted FY1/FY2).
 - PEG = forward P/E ÷ expected EPS growth (annualised consensus FY0 → FY2).
 - Value signal = trailing P/E ≥20% below its own 5-yr average (Starter has no forward-P/E history).
-- Moat (1–10) = return on operating capital 5-yr median (3) + track record, years >15% (2) + gross margin
-  level (2) + stability (1) + operating margin premium over industry median (2) − 1 per operating-loss year.
-  Operating capital = total assets − cash/investments − goodwill/intangibles − non-debt current liabilities,
+- Moat v3 (1–10, see header of `shared/crossSection.js`) = return on operating capital 5-yr median (0–3)
+  + durability, second-worst year (0–2) + consistency, years >15% (0–1) + pricing power, gross margin vs
+  industry median (0–2) + operating margin premium over industry median (0–2) − erosion (margins/returns
+  falling, up to −2) − loss years (−1 each in last 3, −0.5 in years 4–5). Banks/insurers/REITs: no score.
+  Calibrated with `scripts/moat-eval.mjs` (Morningstar wide-moat list vs no-moat industries): ~94% of 7+
+  scores are wide-moat names; blind spots are slumping brands, SBC-heavy software, low-margin defense.
+  v2 gave DXCM 9 (no pricing-power or erosion check). Operating capital = total assets − cash/investments − goodwill/intangibles − non-debt current liabilities,
   floored at 10% of tangible operating assets. Fewer than 4 years of financials → no score (owner sets it).
   History: v1 used tangible equity capital, which gave cash-rich PLTR-type companies capped ±100% returns.
 - Fibonacci = 52-week high and the lowest close in the 52 weeks before it; if price breaks below
