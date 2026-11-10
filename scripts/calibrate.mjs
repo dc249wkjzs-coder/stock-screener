@@ -62,7 +62,7 @@ if (process.env.SAMPLE_OUT) {
     const tech = { ...priceStats(prices[i]), fib: m.fib };
     return {
       ...makeCard(m, tech, m.moat, mf[m.symbol]), moatParts: m.moat.parts, fib: m.fib,
-      metricsSample: m, pricesSample: prices[i].slice(-260).map(([date, close]) => ({ date, close })),
+      metricsSample: m, pricesSample: prices[i].slice(-520).map(([date, close]) => ({ date, close })),
     };
   });
   const owned = ['NVDA', 'MSFT', 'FTNT', 'TDG', 'AVGO', 'KLAC', 'LRCX', 'META', 'GOOGL', 'AMZN', 'LLY', 'SNPS', 'TMO', 'NOC', 'AXON', 'BWXT', 'GEV'];

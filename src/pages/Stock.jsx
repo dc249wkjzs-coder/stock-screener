@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Plus, ExternalLink } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, CartesianGrid } from 'recharts'
+import PriceChart from '@/components/PriceChart'
 import { useData } from '@/lib/data'
 import { DEMO, supabase } from '@/lib/supabase'
 import { Panel, Badge, Empty } from '@/components/ui'
@@ -175,48 +175,42 @@ function MoatPanel({ s }) {
 }
 
 function FibPanel({ s, prices }) {
+  const d = useData()
   const f = s.fib
-  const data = useMemo(() => (prices || []).slice(-260), [prices])
-  if (!f) return <Panel title="Entry levels (Fibonacci)"><div className="text-muted text-[13.5px]">Not enough price history yet.</div></Panel>
-  const hi = f.swingHigh.price, lo = f.swingLow.price
+  const h = d.held[s.symbol]
+  const avgCost = h?.shares ? h.cost / h.shares : null
+  const hi = f?.swingHigh.price, lo = f?.swingLow.price
+  const ma = (v) => { if (v == null || !s.price) return ''; const g = s.price / v - 1; return ` · price is ${fp(Math.abs(g), 1)} ${g >= 0 ? 'above' : 'below'}` }
   return (
-    <Panel title="Entry levels (Fibonacci)" subtitle={`Swing low ${usd(lo)} on ${fdate(f.swingLow.date)} → swing high ${usd(hi)} on ${fdate(f.swingHigh.date)} (daily closes). Range ${usd(f.range)}.`}>
-      <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-        <div className="h-64">
-          {data.length ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid stroke="var(--line)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickFormatter={(v) => v.slice(5)} minTickGap={40} />
-                <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11, fill: 'var(--muted)' }} width={56} tickFormatter={(v) => `$${v.toFixed(0)}`} />
-                <Tooltip formatter={(v) => usd(v)} labelFormatter={(l) => fdate(l)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--line)', fontSize: 12 }} />
-                {f.levels.map((l) => <ReferenceLine key={l.ratio} y={l.price} stroke="var(--accent)" strokeDasharray="4 3" label={{ value: `${(l.ratio * 100).toFixed(1)}%`, position: 'insideRight', fontSize: 10, fill: 'var(--accent)' }} />)}
-                <Line dataKey="close" dot={false} stroke="var(--c-stocks)" strokeWidth={1.6} isAnimationActive={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : <div className="text-muted text-[13px]">Loading chart…</div>}
-        </div>
-        <div>
+    <Panel title="Chart, moving averages and Fibonacci entry levels"
+      subtitle={f ? `Swing low ${usd(lo)} on ${fdate(f.swingLow.date)} → swing high ${usd(hi)} on ${fdate(f.swingHigh.date)}, daily closes. The highlighted dashed line is the next support below the price.` : 'Not enough price history yet for Fibonacci levels.'}>
+      <PriceChart prices={prices} fib={f} owned={s.owned} avgCost={avgCost} />
+      {f && (
+        <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr] mt-5 pt-4 border-t border-line">
           <table className="w-full text-[13px]">
-            <thead><tr className="text-muted text-[11px] uppercase tracking-wider"><th className="text-left pb-1">Level</th><th className="text-left pb-1">Calculation</th><th className="text-right pb-1">Price</th><th className="text-right pb-1">vs now</th></tr></thead>
+            <thead><tr className="text-muted text-[11px] uppercase tracking-wider"><th className="text-left pb-1">Level</th><th className="text-left pb-1 hidden sm:table-cell">Calculation</th><th className="text-right pb-1">Price</th><th className="text-right pb-1">vs now</th></tr></thead>
             <tbody>
               {f.levels.map((l) => (
                 <tr key={l.ratio} className={`border-t border-line/60 ${f.nextSupport?.ratio === l.ratio ? 'font-semibold text-accent' : ''}`}>
-                  <td className="py-1.5 num">{(l.ratio * 100).toFixed(1)}%</td>
-                  <td className="py-1.5 num text-muted text-[12px]">{hi.toFixed(2)} − {l.ratio} × {f.range.toFixed(2)}</td>
+                  <td className="py-1.5 num">{(l.ratio * 100).toFixed(1)}%{l.ratio === 1 ? ' (swing low)' : ''}</td>
+                  <td className="py-1.5 num text-muted text-[12px] hidden sm:table-cell">{hi.toFixed(2)} − {l.ratio} × {f.range.toFixed(2)}</td>
                   <td className="py-1.5 num text-right">{usd(l.price)}</td>
                   <td className="py-1.5 num text-right">{fp(l.price / s.price - 1, 1)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="mt-3 text-[12.5px] text-muted grid gap-1">
-            {f.widened && <div>The 52-week leg was broken, so the swing low is the lowest close in the last ~2 years.</div>}
-            <div>Next support below the price: {f.nextSupport ? `${(f.nextSupport.ratio * 100).toFixed(1)}% at ${usd(f.nextSupport.price)}` : f.belowSwing ? `none: the price is below the swing low (${usd(lo)}), a new low for this period` : 'none (below the swing low)'}</div>
-            <div>Retraced {fp(f.retraced, 0)} of the swing · RSI(14) {fn(s.rsi14)} · 50-day avg {usd(s.sma50)} · 200-day avg {usd(s.sma200)}</div>
+          <div className="text-[13px] grid gap-1.5 content-start">
+            <div><span className="text-muted">Next support:</span> {f.nextSupport ? `${(f.nextSupport.ratio * 100).toFixed(1)}% at ${usd(f.nextSupport.price)} (${fp(f.nextSupport.price / s.price - 1, 1)})` : f.belowSwing ? `none, the price is below the swing low (${usd(lo)})` : 'none'}</div>
+            <div><span className="text-muted">Retraced:</span> {fp(f.retraced, 0)} of the swing</div>
+            <div><span className="text-muted">50-day average:</span> {usd(s.sma50)}{ma(s.sma50)}</div>
+            <div><span className="text-muted">200-day average:</span> {usd(s.sma200)}{ma(s.sma200)}</div>
+            <div><span className="text-muted">RSI (14):</span> {fn(s.rsi14)}{s.rsi14 < 30 ? ' · oversold' : s.rsi14 > 70 ? ' · overbought' : ''}</div>
+            {f.widened && <div className="text-[12.5px] text-muted">The 52-week swing was broken, so the swing low is the lowest close in the last ~2 years.</div>}
+            <div className="text-[12px] text-faint">Formula: level = swing high − ratio × (swing high − swing low).</div>
           </div>
         </div>
-      </div>
+      )}
     </Panel>
   )
 }
