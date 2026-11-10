@@ -42,10 +42,10 @@ export async function fetchUniverse(apiKey, minCap = 500_000_000) {
 
 const isoDaysAgo = (d, today = new Date()) => new Date(today.getTime() - d * 864e5).toISOString().slice(0, 10);
 
-// Eleven calls per stock. Each piece is optional: a failure leaves that piece as { __error }.
+// Twelve calls per stock. Each piece is optional: a failure leaves that piece as { __error }.
 export async function fetchFundamentals(symbol, apiKey, today = new Date()) {
   const get = (path, params) => fmpGet(path, { symbol, ...params }, apiKey).catch((e) => ({ __error: String(e.message || e) }));
-  const [profile, income, balance, keyMetrics, ratios, kmTtm, ratiosTtm, estimates, scores, dcf, filings] = await Promise.all([
+  const [profile, income, balance, keyMetrics, ratios, kmTtm, ratiosTtm, estimates, scores, dcf, filings, priceTarget] = await Promise.all([
     get('profile', {}),
     get('income-statement', { period: 'annual', limit: '6' }),
     get('balance-sheet-statement', { period: 'annual', limit: '5' }),
@@ -57,8 +57,9 @@ export async function fetchFundamentals(symbol, apiKey, today = new Date()) {
     get('financial-scores', {}),
     get('discounted-cash-flow', {}),
     get('sec-filings-search/symbol', { from: isoDaysAgo(120, today), to: today.toISOString().slice(0, 10), limit: '200' }),
+    get('price-target-consensus', {}),
   ]);
-  return { symbol, fetchedAt: today.toISOString(), profile, income, balance, keyMetrics, ratios, kmTtm, ratiosTtm, estimates, scores, dcf, filings };
+  return { symbol, fetchedAt: today.toISOString(), profile, income, balance, keyMetrics, ratios, kmTtm, ratiosTtm, estimates, scores, dcf, filings, priceTarget };
 }
 
 // Reads the cover of an SEC prospectus (424B / S-1) and says what is being sold.

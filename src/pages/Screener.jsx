@@ -3,11 +3,15 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { Panel, Segmented, useSort, Badge, Empty } from '@/components/ui'
-import { PillarDots, Verdict, fx, fp, fn, usd, cap } from '@/components/pillarUi'
+import { PillarDots, Verdict, SetupChip, fx, fp, fn, usd, cap } from '@/components/pillarUi'
+import { SETUP_ORDER } from '@shared/valuation.js'
 
 const VERDICTS = [['pass', 'Passes'], ['all', 'All'], ['fail', 'Fails'], ['incomplete', 'Incomplete']]
 const HOLD = [['all', 'All'], ['owned', 'Owned'], ['watch', 'Watchlist'], ['none', 'Not held']]
 const TOGGLES = [
+  ['zone', 'In buy zone', 'Passes the mandate and is within the buy zone of a Fibonacci level'],
+  ['confirmed', 'Bounce confirmed', 'In the buy zone, back above the 20-day average, RSI above 30'],
+  ['under', 'Below fair value', 'Price below the middle of its fair value range'],
   ['value', 'Value signal', 'P/E at least 20% below its own 5-year average'],
   ['oversold', 'RSI under 30', '14-day RSI below 30'],
   ['nearFib', 'Near Fib support', 'Within 3% above the next Fibonacci level'],
@@ -44,13 +48,16 @@ export default function Screener() {
       if (hold === 'none' && (s.owned || s.watch)) return false
       if (sector && s.sector !== sector) return false
       if (minMoat && !(s.moatUsed >= minMoat)) return false
+      if (on.has('zone') && !['zone', 'zone-confirmed'].includes(s.setup.status)) return false
+      if (on.has('confirmed') && s.setup.status !== 'zone-confirmed') return false
+      if (on.has('under') && !(s.fair?.vsMid < 0)) return false
       if (on.has('value') && !s.eval.pillars.value.signal) return false
       if (on.has('oversold') && !(s.rsi14 < 30)) return false
       if (on.has('nearFib') && !(s.fibSupport && s.price / s.fibSupport.price - 1 <= 0.03)) return false
       if (on.has('knife') && !(s.offHigh <= -0.25)) return false
       if (on.has('newco') && !(s.yearsListed != null && s.yearsListed < d.rules.newCompanyYears)) return false
       return true
-    }).map((s) => ({ ...s, fibGap: s.fibSupport ? s.price / s.fibSupport.price - 1 : null, verdictRank: { pass: 0, 'pass-warn': 1, incomplete: 2, fail: 3 }[s.eval.overall] }))
+    }).map((s) => ({ ...s, fibGap: s.fibSupport ? s.price / s.fibSupport.price - 1 : null, verdictRank: { pass: 0, 'pass-warn': 1, incomplete: 2, fail: 3 }[s.eval.overall], setupRank: SETUP_ORDER[s.setup.status], fairGap: s.fair?.vsMid ?? null }))
   }, [d.stocks, q, verdict, hold, sector, minMoat, params]) // eslint-disable-line
 
   const { sorted, th } = useSort(rows, 'marketCap')
@@ -102,6 +109,7 @@ export default function Screener() {
               <thead><tr>
                 {th('symbol', 'Stock')}
                 {th('verdictRank', 'Verdict', 'text-left!')}
+                {th('setupRank', 'Status', 'text-left!')}
                 <th className="text-left!">Pillars</th>
                 {th('moatUsed', 'Moat')}
                 {th('price', 'Price')}
@@ -114,7 +122,7 @@ export default function Screener() {
                 {th('rsi14', 'RSI')}
                 {th('offHigh', 'Off high')}
                 {th('fibGap', 'To Fib')}
-                {th('dcfUpside', 'DCF gap')}
+                {th('fairGap', 'vs fair value')}
               </tr></thead>
               <tbody>
                 {sorted.slice(0, limit).map((s) => (
@@ -126,6 +134,7 @@ export default function Screener() {
                       <div className="text-[12px] text-muted truncate">{s.name}</div>
                     </td>
                     <td className="text-left!"><Verdict e={s.eval} short /></td>
+                    <td className="text-left!"><SetupChip setup={s.setup} />{s.setup.status === 'wait' && <div className="text-[11.5px] text-muted num">{s.setup.title.replace('Wait for ', '')}</div>}</td>
                     <td className="text-left!"><PillarDots pillars={s.eval.pillars} /></td>
                     <td className="num font-semibold">{s.moatUsed ?? '—'}{s.moatOverride != null && <span className="text-accent" title="Your override">*</span>}</td>
                     <td className="num">{usd(s.price)}</td>
@@ -138,7 +147,7 @@ export default function Screener() {
                     <td className={`num ${s.rsi14 < 30 ? 'text-gain font-semibold' : s.rsi14 > 70 ? 'text-loss' : ''}`}>{fn(s.rsi14)}</td>
                     <td className="num">{fp(s.offHigh)}</td>
                     <td className="num" title={s.fibSupport ? `${(s.fibSupport.ratio * 100).toFixed(1)}% level at ${usd(s.fibSupport.price)}` : ''}>{s.fibGap == null ? '—' : `${fp(s.fibGap, 1)}`}</td>
-                    <td className={`num ${s.dcfUpside > 0 ? 'text-gain' : s.dcfUpside < 0 ? 'text-loss' : ''}`}>{fp(s.dcfUpside)}</td>
+                    <td className={`num ${s.fairGap < 0 ? 'text-gain' : s.fairGap > 0 ? 'text-loss' : ''}`} title={s.fair ? `Fair value middle ${usd(s.fair.mid)} (range ${usd(s.fair.low)}–${usd(s.fair.high)})` : ''}>{fp(s.fairGap)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -148,7 +157,7 @@ export default function Screener() {
         )}
       </Panel>
       <p className="text-[12.5px] text-faint px-1">
-        Click any row to open the stock's page with its chart, Fibonacci levels and moat breakdown. Pillar dots, in order: moat, value, EPS, EBITDA, debt, financing. Hover a dot for the reason. "To Fib" is how far the price is above the next Fibonacci support. "DCF gap" is FMP's DCF value vs the price. Not investment advice.
+        Click any row to open the stock's page with its chart, Fibonacci levels and moat breakdown. Pillar dots, in order: moat, value, EPS, EBITDA, debt, financing. Hover a dot for the reason. "To Fib" is how far the price is above the next Fibonacci support. "vs fair value" is the price against the middle of its fair value range (negative = below fair value). Not investment advice.
       </p>
     </div>
   )

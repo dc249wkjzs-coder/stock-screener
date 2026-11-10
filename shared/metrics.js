@@ -72,18 +72,22 @@ export function buildMetrics(raw, uni, today = new Date()) {
   const interestCoverage = num(rT.interestCoverageRatioTTM);
 
   // --- Moat inputs (5 annual years)
-  // Return on tangible invested capital: after-tax EBIT ÷ (debt + equity − cash − goodwill & intangibles).
-  // Leaving out acquisition goodwill measures the business itself, not the prices paid for deals.
+  // Return on operating capital: after-tax EBIT ÷ the capital the business actually runs on =
+  // total assets − cash & investments − goodwill & intangibles − non-debt current liabilities
+  // (payables, deferred revenue). Excess cash and acquisition goodwill are left out, so cash-rich
+  // and acquisitive companies are measured on the business itself. A floor of 10% of tangible
+  // operating assets stops tiny denominators from producing meaningless percentages.
   const balance = arr(raw.balance);
   const roicYears = income.slice(0, 5).map((inc) => {
     const b = balance.find((x) => x.date === inc.date);
     if (!b || inc.ebit == null) return null;
     const taxRate = inc.incomeBeforeTax > 0 ? Math.min(0.35, Math.max(0, inc.incomeTaxExpense / inc.incomeBeforeTax)) : 0.21;
     const nopat = inc.ebit * (1 - taxRate);
-    const capital = (b.totalDebt || 0) + (b.totalEquity ?? b.totalStockholdersEquity ?? 0)
-      - (b.cashAndShortTermInvestments ?? b.cashAndCashEquivalents ?? 0) - (b.goodwillAndIntangibleAssets || 0);
-    // Tiny or negative tangible capital (common after big buybacks or acquisitions): cap instead of dividing.
-    if (capital <= 0 || capital < (b.totalAssets || 0) * 0.02) return nopat > 0 ? 1 : -1;
+    const cash = (b.cashAndShortTermInvestments ?? b.cashAndCashEquivalents ?? 0) + (b.longTermInvestments || 0);
+    const tangibleOpAssets = (b.totalAssets || 0) - cash - (b.goodwillAndIntangibleAssets || 0);
+    const freeCredit = Math.max(0, (b.totalCurrentLiabilities || 0) - (b.shortTermDebt || 0));
+    const capital = Math.max(tangibleOpAssets - freeCredit, tangibleOpAssets * 0.10);
+    if (!(capital > 0)) return null;
     return Math.max(-1, Math.min(1, nopat / capital));
   }).filter((x) => x != null);
   const roicReportedYears = km.map((r) => num(r.returnOnInvestedCapital)).filter((x) => x != null);
@@ -108,6 +112,7 @@ export function buildMetrics(raw, uni, today = new Date()) {
   const ipoDate = profile?.ipoDate || null;
   const yearsListed = ipoDate ? daysBetween(ipoDate, today) / 365 : null;
   const dcf = num(dcfRow.dcf);
+  const pt = one(raw.priceTarget) || {};
 
   return {
     symbol: raw.symbol,
@@ -118,6 +123,7 @@ export function buildMetrics(raw, uni, today = new Date()) {
     price, priceDate: today.toISOString().slice(0, 10),
     beta: num(uni?.beta) ?? num(profile?.beta),
     ipoDate, yearsListed,
+    company: profile ? { description: profile.description || null, ceo: profile.ceo || null, website: profile.website || null, employees: num(Number(profile.fullTimeEmployees)) , hq: [profile.city, profile.state].filter(Boolean).join(', ') || null } : null,
     revenue: lastFy ? num(lastFy.revenue) : null,
     revenueTtm: num(scores.revenue),
     // value
@@ -132,6 +138,11 @@ export function buildMetrics(raw, uni, today = new Date()) {
     netDebtToEbitda, interestCoverage,
     // moat inputs
     roicYears, roicAvg: avg(roicYears), roicYearsAbove10: roicYears.filter((x) => x > 0.10).length,
+    roicMedian: roicYears.length ? [...roicYears].sort((a, b) => a - b)[Math.floor((roicYears.length - 1) / 2)] : null,
+    roicYearsAbove15: roicYears.filter((x) => x > 0.15).length,
+    // Years with an operating loss in the last five (a moat should show up as steady profits).
+    lossYears: income.slice(0, 5).filter((r) => (r.operatingIncome ?? r.ebit) < 0).length,
+    incomeYears: Math.min(5, income.length),
     roicReportedAvg: avg(roicReportedYears),
     grossMarginYears, grossMarginAvg: avg(grossMarginYears), grossMarginStdev: stdev(grossMarginYears),
     roicTtm: num(kmT.returnOnInvestedCapitalTTM),
@@ -140,6 +151,8 @@ export function buildMetrics(raw, uni, today = new Date()) {
     // extras
     piotroski: num(scores.piotroskiScore), altmanZ: num(scores.altmanZScore),
     dcf, dcfUpside: dcf != null && price ? dcf / price - 1 : null,
+    // analysts' 12-month price targets
+    targetConsensus: num(pt.targetConsensus), targetHigh: num(pt.targetHigh), targetLow: num(pt.targetLow), targetMedian: num(pt.targetMedian),
     earningsYieldEbit,
     dataGaps: ['profile', 'income', 'balance', 'keyMetrics', 'ratios', 'kmTtm', 'ratiosTtm', 'estimates', 'scores', 'dcf', 'filings']
       .filter((k) => !Array.isArray(raw[k]) || (raw[k].__error)),

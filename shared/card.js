@@ -17,11 +17,15 @@ export function makeCard(m, tech, moat, magic) {
     netDebtToEbitda: m.netDebtToEbitda, interestCoverage: m.interestCoverage,
     recentRaises: (m.recentRaises || []).map(({ form, date, kind }) => ({ form, date, kind })),
     recentShelves: (m.recentShelves || []).map(({ form, date }) => ({ form, date })),
-    moat: moat ? { score: moat.score } : null,
-    offHigh: tech?.offHigh ?? null, rsi14: tech?.rsi14 ?? null, sma50: tech?.sma50 ?? null, sma200: tech?.sma200 ?? null,
+    moat: moat ? { score: moat.score, reason: moat.reason || null } : null,
+    offHigh: tech?.offHigh ?? null, rsi14: tech?.rsi14 ?? null, rsiMin10: tech?.rsiMin10 ?? null,
+    sma20: tech?.sma20 ?? null, sma50: tech?.sma50 ?? null, sma200: tech?.sma200 ?? null,
+    high52: tech?.high52 ?? null, low52: tech?.low52 ?? null,
+    pullbackMax: tech?.pullbackMax ?? null, pullbackMedian: tech?.pullbackMedian ?? null, pullbackCount: tech?.pullbackCount ?? null,
     chg1m: tech?.chg1m ?? null, chg3m: tech?.chg3m ?? null, chg1y: tech?.chg1y ?? null,
     fibSupport: tech?.fib?.nextSupport ?? null, fibRetraced: tech?.fib?.retraced ?? null,
     dcf: m.dcf, dcfUpside: tech?.lastClose && m.dcf != null ? m.dcf / tech.lastClose - 1 : m.dcfUpside,
+    targetConsensus: m.targetConsensus ?? null, targetHigh: m.targetHigh ?? null, targetLow: m.targetLow ?? null,
     piotroski: m.piotroski, altmanZ: m.altmanZ, magicRank: magic?.rank ?? null, magicOf: magic?.of ?? null,
   };
 }

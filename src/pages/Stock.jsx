@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Plus, ExternalLink } from 'lucide-react'
 import PriceChart from '@/components/PriceChart'
+import PlanPanel from '@/components/PlanPanel'
 import { useData } from '@/lib/data'
 import { DEMO, supabase } from '@/lib/supabase'
 import { Panel, Badge, Empty } from '@/components/ui'
@@ -52,6 +53,8 @@ export default function Stock() {
           </div>
         </div>
       </div>
+
+      <PlanPanel s={s} guide={d.guide} />
 
       <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
         <Panel title="Mandate fit" subtitle={e.firstFail ? 'The first failed pillar stops the verdict; the rest are shown for context.' : e.overall === 'incomplete' ? `Missing data: ${e.missing.join(', ')}` : 'Every hard pillar passes.'}>
@@ -147,7 +150,7 @@ function MoatPanel({ s }) {
   const [note, setNote] = useState(o?.note ?? '')
   const parts = s.moatParts || []
   return (
-    <Panel title={`Moat ${s.moatUsed ?? '—'}/10`} subtitle={o ? `Your override (calculated: ${s.moat?.score ?? '—'}).` : 'Calculated from 5 years of FMP data.'}>
+    <Panel title={`Moat ${s.moatUsed ?? '—'}/10`} subtitle={o ? `Your override (calculated: ${s.moat?.score ?? 'none'}).` : s.moat?.score == null ? (s.moat?.reason || 'No calculated score.') : 'Calculated from 5 years of FMP data.'}>
       <table className="w-full text-[13px]">
         <tbody>
           {parts.map((p) => (
@@ -219,7 +222,7 @@ function FitPanel({ s }) {
   const d = useData()
   const guidePct = 0.03
   const guide = d.book * guidePct
-  const drop = s.beta != null ? Math.max(-0.95, -0.25 * s.beta) : null
+  const drop = s.beta > 0 ? Math.max(-0.95, -0.25 * s.beta) : null
   const holdingValue = s.shares * (s.price || 0)
   // Theme exposure: what you already own in the same industry and sector.
   const same = d.stocks.filter((x) => x.owned && x.symbol !== s.symbol)

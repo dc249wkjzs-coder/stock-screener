@@ -20,6 +20,14 @@ export const DEFAULT_RULES = {
   strongCoverage: 8,           // P5: 5-7x can pass as yellow with interest coverage >= this
   financingDays: 90,           // P6
   newCompanyYears: 3,          // P8: listed within this many years = "new company"
+  // Entry plan (not pillars): Fibonacci-only entries, as the mandate says.
+  buyZonePct: 0.03,            // "in the buy zone" = within 3% of a Fibonacci level
+  ladderMinRatio: 0.382,       // entry levels: 38.2% retracement and deeper (23.6% is too shallow)
+  ladderRungs: 3,              // split the satellite guide across up to 3 levels
+  confirmRsi: 30,              // bounce confirmed: close above the 20-day average AND RSI above this
+  extendedRetrace: 0.236,      // less than a 23.6% pullback from the swing high = "extended"
+  fairPECap: 60,               // cap on the mandate-allowed P/E used for fair value
+  satellitePct: 0.03,          // satellite guide = 3% of the stock book
 };
 
 export const PILLARS = [
@@ -43,7 +51,7 @@ export function evaluate(s, rules = DEFAULT_RULES) {
   const eliteValue = (s.forwardPE != null && s.forwardPE > 0 && s.forwardPE <= R.eliteValueForwardPE) || (s.peg != null && s.peg < R.eliteValuePEG);
 
   // 1 Moat
-  if (moat == null) out.moat = { status: 'nodata', why: 'No moat score' };
+  if (moat == null) out.moat = { status: 'nodata', why: s.moat?.reason || 'No moat score yet' };
   else if (moat >= R.moatPass) out.moat = { status: 'pass', why: `Moat ${moat}/10` };
   else if (moat >= R.moatException && eliteValue) out.moat = { status: 'pass', why: `Moat ${moat}/10, allowed by elite value (fwd P/E ${x(s.forwardPE)}, PEG ${x(s.peg, 2)})` };
   else out.moat = { status: 'fail', why: `Moat ${moat}/10 (needs ${R.moatPass}+${moat >= R.moatException ? ', or elite value' : ''})` };

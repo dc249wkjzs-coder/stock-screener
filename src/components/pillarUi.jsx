@@ -43,3 +43,18 @@ export const fp = (v, d = 0) => (v == null || !isFinite(v) ? '—' : `${noNegZer
 export const fn = (v, d = 0) => (v == null || !isFinite(v) ? '—' : noNegZero(v.toFixed(d)))
 export const usd = (v) => (v == null || !isFinite(v) ? '—' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: Math.abs(v) >= 1000 ? 0 : 2, maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : 2 }).format(v))
 export const cap = (v) => (v == null ? '—' : v >= 1e12 ? `$${(v / 1e12).toFixed(2)}T` : v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : `$${(v / 1e6).toFixed(0)}M`)
+
+// Entry status from shared/valuation.js entrySetup().
+export const SETUP = {
+  'zone-confirmed': { label: 'Buy zone · confirmed', cls: 'bg-gain-soft text-gain' },
+  zone: { label: 'Buy zone · not confirmed', cls: 'bg-accent-soft text-warn' },
+  wait: { label: 'Wait for level', cls: 'bg-surface-2 text-fg' },
+  extended: { label: 'Extended', cls: 'bg-surface-2 text-muted' },
+  below: { label: 'Below all levels', cls: 'bg-loss-soft text-loss' },
+  incomplete: { label: 'Incomplete', cls: 'bg-surface-2 text-faint' },
+  fail: { label: 'Fails mandate', cls: 'bg-loss-soft text-loss' },
+}
+export function SetupChip({ setup, long }) {
+  const t = SETUP[setup.status]
+  return <span title={setup.detail} className={`inline-flex items-center rounded px-1.5 py-px text-[11px] font-semibold whitespace-nowrap ${t.cls}`}>{long ? setup.title : t.label}</span>
+}

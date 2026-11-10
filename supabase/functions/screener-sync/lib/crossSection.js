@@ -9,24 +9,32 @@ const median = (xs) => {
 };
 
 // Moat score, max 10:
-//   Return on tangible capital, 5-yr avg  3  (>=25% = 3, 15-25% = 2, 10-15% = 1)
-//   Return consistency                    2  (years above 10%: 5 = 2, 4 = 1.5, 3 = 1, 2 = 0.5)
-//   Gross margin level                    2  (>=60% = 2, 40-60% = 1.5, 25-40% = 1, 15-25% = 0.5)
-//   Gross margin stability                1  (std dev of 5 yearly margins: <=2pts = 1, <=4pts = 0.5)
-//   Margin premium over industry peers    2  (operating margin >= 2x industry median = 2, above median = 1)
-// Rounded to the nearest whole number, minimum 1.
+//   Return on operating capital, 5-yr median 3  (>=25% = 3, 15-25% = 2, 10-15% = 1)
+//   Track record                             2  (years above 15%: 5 = 2, 4 = 1, 3 = 0.5)
+//   Gross margin level                       2  (>=60% = 2, 40-60% = 1.5, 25-40% = 1, 15-25% = 0.5)
+//   Gross margin stability                   1  (std dev of 5 yearly margins: <=2pts = 1, <=4pts = 0.5)
+//   Margin premium over industry peers       2  (operating margin >= 2x industry median = 2, above median = 1)
+//   Loss years                              −1 each (operating loss in any of the last 5 years)
+// Rounded to the nearest whole number, between 1 and 10.
+// Fewer than 4 years of financials: no score (the owner sets one).
 export function moatScore(m, ctx) {
+  // New listings and young companies: too little history to judge from the numbers.
+  const years = Math.max(m.roicYears?.length || 0, m.incomeYears || 0);
+  if (years < 4) {
+    return { score: null, raw: null, parts: [], reason: `Only ${years} year${years === 1 ? '' : 's'} of financials. Too little history to calculate a moat; set your own score.` };
+  }
   const parts = [];
   const add = (label, pts, max, detail) => parts.push({ label, pts, max, detail });
   const pct = (x) => (x == null ? 'n/a' : `${(x * 100).toFixed(1)}%`);
+  const yr = (x) => (x >= 1 ? '>100%' : `${Math.round(x * 100)}%`);
 
-  const r = m.roicAvg;
-  add('Return on tangible capital', r == null ? 0 : r >= 0.25 ? 3 : r >= 0.15 ? 2 : r >= 0.10 ? 1 : 0, 3,
-    r == null ? 'n/a' : r >= 1 ? 'very high (little tangible capital)' : `${pct(r)} 5-yr avg`);
+  const r = m.roicMedian ?? m.roicAvg;
+  add('Return on operating capital', r == null ? 0 : r >= 0.25 ? 3 : r >= 0.15 ? 2 : r >= 0.10 ? 1 : 0, 3,
+    r == null ? 'n/a' : `median ${r >= 1 ? '>100%' : pct(r)}; yearly ${(m.roicYears || []).map(yr).join(', ')} (newest first)`);
   const n = m.roicYears?.length || 0;
-  const above = m.roicYearsAbove10 || 0;
-  const consistency = n < 3 ? 0 : { 5: 2, 4: 1.5, 3: 1, 2: 0.5 }[Math.round((above / n) * 5)] || 0;
-  add('Return consistency', consistency, 2, `${above} of ${n} years above 10%`);
+  const above = m.roicYearsAbove15 ?? 0;
+  const track = n < 3 ? 0 : above >= 5 ? 2 : above === 4 ? 1 : above === 3 ? 0.5 : 0;
+  add('Track record', track, 2, `${above} of ${n} years above 15%`);
   const g = m.grossMarginAvg;
   add('Gross margin level', g == null ? 0 : g >= 0.6 ? 2 : g >= 0.4 ? 1.5 : g >= 0.25 ? 1 : g >= 0.15 ? 0.5 : 0, 2, pct(g));
   const sd = m.grossMarginStdev;
@@ -37,9 +45,11 @@ export function moatScore(m, ctx) {
   const premium = om == null || indMed == null || om <= 0 ? 0 : indMed > 0 && om >= 2 * indMed ? 2 : om > indMed ? 1 : 0;
   add('Margin premium over peers', premium, 2,
     `${pct(om)} operating margin vs ${pct(indMed)} median of ${ctx.industrySize?.[m.industry] ?? '?'} ${m.industry} stocks`);
+  const losses = m.lossYears || 0;
+  if (losses) add('Loss years', -losses, 0, `operating loss in ${losses} of the last ${m.incomeYears || 5} years`);
 
   const total = parts.reduce((s, p) => s + p.pts, 0);
-  return { score: Math.max(1, Math.round(total)), raw: total, parts };
+  return { score: Math.min(10, Math.max(1, Math.round(total))), raw: total, parts };
 }
 
 // Context built once over the whole universe.

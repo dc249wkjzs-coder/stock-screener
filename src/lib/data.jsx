@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { DEMO, supabase } from './supabase'
 import { DEFAULT_RULES, evaluate } from '@shared/pillars.js'
+import { fairValue, entrySetup } from '@shared/valuation.js'
 
 const Ctx = createContext(null)
 export const useData = () => useContext(Ctx)
@@ -66,27 +67,31 @@ export function DataProvider({ children }) {
     return m
   }, [state.positions])
 
-  // Every stock with its mandate verdict under the current rules and moat overrides.
+  // Stock book value (individual stocks only), for the satellite guide.
+  const book = useMemo(() => {
+    const px = Object.fromEntries(state.cards.map((c) => [c.symbol, c.price]))
+    let v = 0
+    for (const [sym, h] of Object.entries(held)) {
+      if (!h.shares) continue
+      const p = px[sym] ?? state.quotes[sym]
+      if (p) v += h.shares * p
+    }
+    return v
+  }, [held, state.cards, state.quotes])
+  const guide = book * rules.satellitePct
+
+  // Every stock with its mandate verdict, fair value range and entry status under the current rules.
   const stocks = useMemo(() => state.cards.map((c) => {
     const o = state.overrides[c.symbol]
     const s = { ...c, moatOverride: o?.moat ?? null }
     const e = evaluate(s, rules)
     const h = held[c.symbol]
-    return { ...s, eval: e, moatUsed: e.moat, owned: (h?.shares || 0) > 0, watch: !!h?.watch, shares: h?.shares || 0 }
-  }), [state.cards, state.overrides, rules, held])
+    const fair = fairValue(s, rules)
+    const setup = entrySetup(s, e, rules, guide || null)
+    return { ...s, eval: e, moatUsed: e.moat, owned: (h?.shares || 0) > 0, watch: !!h?.watch, shares: h?.shares || 0, fair, setup }
+  }), [state.cards, state.overrides, rules, held, guide])
 
   const bySymbol = useMemo(() => Object.fromEntries(stocks.map((s) => [s.symbol, s])), [stocks])
-
-  // Stock book value (individual stocks only), for the 3% satellite guide.
-  const book = useMemo(() => {
-    let v = 0
-    for (const [sym, h] of Object.entries(held)) {
-      if (!h.shares) continue
-      const px = bySymbol[sym]?.price ?? state.quotes[sym]
-      if (px) v += h.shares * px
-    }
-    return v
-  }, [held, bySymbol, state.quotes])
 
   async function saveOverride(symbol, moat, note) {
     if (DEMO) { setState((s) => ({ ...s, overrides: { ...s.overrides, [symbol]: moat == null ? undefined : { symbol, moat, note } } })); return }
@@ -129,6 +134,6 @@ export function DataProvider({ children }) {
     flash(`${stock.symbol} added to your Life Ledger watchlist`)
   }
 
-  const value = { ...state, demo: DEMO, rules, stocks, bySymbol, held, book, toast, reload: load, saveOverride, saveRules, addToWatchlist }
+  const value = { ...state, demo: DEMO, rules, stocks, bySymbol, held, book, guide, toast, reload: load, saveOverride, saveRules, addToWatchlist }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
