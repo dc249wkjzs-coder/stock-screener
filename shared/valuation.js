@@ -119,7 +119,7 @@ export function entrySetup(s, e, rules = DEFAULT_RULES, guide = null) {
   if (f.belowSwing) { status = 'below'; title = 'Below every Fibonacci level'; detail = `The price is under the swing low ($${f.swingLow.price.toFixed(2)}); no Fibonacci support below.`; }
   else if (zoneLevel) {
     status = confirmed ? 'zone-confirmed' : 'zone';
-    title = confirmed ? 'In buy zone · bounce confirmed' : 'In buy zone · not confirmed yet';
+    title = confirmed ? 'Buy zone · bouncing' : 'Buy zone · wait';
     detail = `${p > zoneLevel.price ? 'Within' : 'Just under'} ${(Math.abs(p / zoneLevel.price - 1) * 100).toFixed(1)}% of the ${(zoneLevel.ratio * 100).toFixed(1)}% level ($${zoneLevel.price.toFixed(2)}).`;
   } else {
     const next = entryLevels.filter((l) => l.price < p).sort((a, b) => b.price - a.price)[0];

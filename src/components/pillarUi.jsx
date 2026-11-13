@@ -46,8 +46,8 @@ export const cap = (v) => (v == null ? '—' : v >= 1e12 ? `$${(v / 1e12).toFixe
 
 // Entry status from shared/valuation.js entrySetup().
 export const SETUP = {
-  'zone-confirmed': { label: 'Buy zone · confirmed', cls: 'bg-gain-soft text-gain' },
-  zone: { label: 'Buy zone · not confirmed', cls: 'bg-warn-soft text-warn' },
+  'zone-confirmed': { label: 'Buy zone · bouncing', cls: 'bg-gain-soft text-gain' },
+  zone: { label: 'Buy zone · wait', cls: 'bg-warn-soft text-warn' },
   wait: { label: 'Wait for level', cls: 'bg-surface-2 text-fg' },
   extended: { label: 'Extended', cls: 'bg-surface-2 text-muted' },
   below: { label: 'Below all levels', cls: 'bg-loss-soft text-loss' },

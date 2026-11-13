@@ -75,7 +75,7 @@ export function bestMatches(stocks, { top = 3, topOverall = 5 } = {}) {
     },
     {
       id: 'entry', title: 'Best price to buy now',
-      how: 'At a Fibonacci buy level right now (bounce confirmed first), then the strongest business by quality, growth and balance sheet.',
+      how: 'In the buy zone right now ("bouncing" first), then the strongest business by quality, growth and balance sheet.',
       picks: best(scored.filter((x) => x.s.setup?.status === 'zone' || x.s.setup?.status === 'zone-confirmed'),
         (x) => (x.s.setup.status === 'zone-confirmed' ? 1 : 0) + (avg([x.groups.quality, x.groups.growth, x.groups.strength]) ?? 0))
         .map((x) => ({ ...x, factors: [f('setup', x), f('rsi14', x), f('offHigh', x), f('fairGap', x, x.r('fair')), f('moatUsed', x)] })),

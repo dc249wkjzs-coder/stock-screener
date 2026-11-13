@@ -18,8 +18,10 @@ export default function PlanPanel({ s, guide = null }) {
   return (
     <Panel title="Valuation and entry plan" subtitle="Fixed rules applied to the data: a reading of the numbers, not a forecast or advice.">
       <div className={`rounded-xl border px-4 py-3 mb-5 ${TONE[st.status]}`}>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted"><Term id={st.status.startsWith('zone') ? 'confirmation' : st.status === 'fail' ? 'pillars' : 'buy-zone'}>{SETUP[st.status].label}</Term></div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted"><Term id={st.status.startsWith('zone') ? 'confirmation' : st.status === 'fail' ? 'pillars' : 'buy-zone'}>{st.status.startsWith('zone') ? 'Entry timing' : SETUP[st.status].label}</Term></div>
         <div className="text-lg font-semibold mt-0.5">{st.title}</div>
+        {st.status === 'zone' && <div className="text-[13.5px] mt-0.5">The price has reached a level where stocks often stop falling, but it hasn't turned up yet.</div>}
+        {st.status === 'zone-confirmed' && <div className="text-[13.5px] mt-0.5">The price reached a level where stocks often stop falling, and it's now turning up.</div>}
         <div className="text-[13.5px] text-muted mt-0.5">{st.detail}</div>
         {['zone', 'zone-confirmed', 'wait', 'extended'].includes(st.status) && (
           <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-[13px]">
