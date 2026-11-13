@@ -1,4 +1,4 @@
-// "What if I bought these 5 years ago?": buys the chosen stocks once, at the chosen shares, on the first trading week
+// "What if I bought these 1 or 3 years ago?": buys the chosen stocks once, at the chosen shares, on the first trading week
 // of the period and holds them (no rebalancing), dividends reinvested, compared with the S&P 500 (SPY) bought the same day.
 // A stock that wasn't listed yet keeps its money in cash until its first week of trading, then buys it.
 // Prices are weekly closes from the stored history (dividend-adjusted when available).
@@ -23,7 +23,7 @@ function seriesOf(h) {
 export function pastPerformance(holdings, histories, { years = 5, start = 10000 } = {}) {
   const bench = seriesOf(histories.SPY);
   const bw = [...bench.keys()].sort((a, b) => a - b);
-  if (bw.length < 60) return null;
+  if (bw.length < 30) return null;
   const last = bw[bw.length - 1];
   const first = bw.find((w) => w >= last - Math.round(years * 52.18)) ?? bw[0];
   const grid = bw.filter((w) => w >= first);

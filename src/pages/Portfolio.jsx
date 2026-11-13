@@ -79,7 +79,7 @@ export default function Portfolio() {
         <div className="flex flex-wrap gap-2">
           {anySet && <button className="btn" onClick={() => d.setWeights(Object.fromEntries(d.portfolio.map((p) => [p.symbol, null])))}>Reset to equal weights</button>}
           <button className="btn" onClick={() => { if (window.confirm('Remove every stock from My portfolio?')) d.clearPortfolio() }}>Clear all</button>
-          <button className="btn btn-primary" onClick={() => (past ? pastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : setPast(true))}><History size={14} /> What if I bought these 5 years ago?</button>
+          <button className="btn btn-primary" onClick={() => (past ? pastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : setPast(true))}><History size={14} /> What if I bought these 1 or 3 years ago?</button>
         </div>
       </div>
 

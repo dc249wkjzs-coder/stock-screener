@@ -36,6 +36,7 @@ function Stat({ label, mine, spy, fmt, better }) {
 
 // holdings: [{ symbol, w }] with w as a fraction (adds up to 1).
 export default function PastPerformance({ holdings }) {
+  const [years, setYears] = useState(1)
   const [hist, setHist] = useState(null)
   const [err, setErr] = useState(null)
   const key = holdings.map((h) => h.symbol).sort().join(',')
@@ -45,22 +46,31 @@ export default function PastPerformance({ holdings }) {
     loadHistories(key.split(',')).then((h) => live && setHist(h)).catch((e) => live && setErr(e.message || String(e)))
     return () => { live = false }
   }, [key])
-  const r = useMemo(() => (hist ? pastPerformance(holdings, hist) : null), [hist, holdings])
+  const r = useMemo(() => (hist ? pastPerformance(holdings, hist, { years }) : null), [hist, holdings, years])
+  const title = `What if I bought these ${years === 1 ? '1 year' : `${years} years`} ago?`
+  const pick = (
+    <div className="inline-flex rounded-full bg-surface-2 p-0.5" role="radiogroup" aria-label="How long ago">
+      {[1, 3].map((y) => (
+        <button key={y} role="radio" aria-checked={years === y} onClick={() => setYears(y)}
+          className={`rounded-full px-3.5 py-1 text-[13px] ${years === y ? 'bg-surface shadow-sm font-semibold' : 'text-muted hover:text-fg'}`}>{y === 1 ? '1 year ago' : '3 years ago'}</button>
+      ))}
+    </div>
+  )
 
-  if (err) return <Panel title="What if I bought these 5 years ago?"><p className="text-[13.5px] text-muted">{err}</p></Panel>
-  if (!r) return <Panel title="What if I bought these 5 years ago?"><p className="text-[13.5px] text-muted">{hist ? 'Not enough price history to run this yet.' : 'Working it out…'}</p></Panel>
+  if (err) return <Panel title={title} action={pick}><p className="text-[13.5px] text-muted">{err}</p></Panel>
+  if (!r) return <Panel title={title} action={pick}><p className="text-[13.5px] text-muted">{hist ? 'Not enough price history to run this yet.' : 'Working it out…'}</p></Panel>
 
-  const chart = r.series.filter((_, i) => i % 2 === 0 || i === r.series.length - 1)
+  const chart = years > 1 ? r.series.filter((_, i) => i % 2 === 0 || i === r.series.length - 1) : r.series
   const late = r.stocks.filter((s) => s.late), none = r.stocks.filter((s) => s.noData)
   const diff = r.mine.end - r.spy.end
 
   return (
-    <Panel title="What if I bought these 5 years ago?"
+    <Panel title={title} action={pick}
       subtitle={`$10,000 split at your shares on ${fmtDay(r.from)}, held until ${fmtDay(r.to)}. Dividends reinvested, never rebalanced, no costs or taxes. A look back, not a forecast.`}>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-5">
+      <div className={`grid gap-3 sm:grid-cols-2 ${years > 1 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} mb-5`}>
         <Stat label="$10,000 became" mine={r.mine.end} spy={r.spy.end} fmt={(v) => money(v)} />
         <Stat label="Total return" mine={r.mine.total} spy={r.spy.total} fmt={(v) => `${sign(v)}${fp(v)}`} />
-        <Stat label="Per year (average)" mine={r.mine.cagr} spy={r.spy.cagr} fmt={(v) => `${sign(v)}${fp(v, 1)}`} />
+        {years > 1 && <Stat label="Per year (average)" mine={r.mine.cagr} spy={r.spy.cagr} fmt={(v) => `${sign(v)}${fp(v, 1)}`} />}
         <Stat label="Worst drop along the way" mine={r.mine.maxDrawdown} spy={r.spy.maxDrawdown} fmt={(v) => fp(v)} better="high" />
       </div>
       <p className="text-[14px] mb-4">
@@ -71,7 +81,7 @@ export default function PastPerformance({ holdings }) {
           <LineChart data={chart} margin={{ top: 5, right: 12, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--line)" vertical={false} />
             <XAxis dataKey="asof" tickFormatter={fmtDate} tick={{ fontSize: 11, fill: 'var(--muted)' }} minTickGap={50} />
-            <YAxis tickFormatter={(v) => `$${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: 'var(--muted)' }} width={44} domain={['auto', 'auto']} />
+            <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(r.mine.end > 30000 || r.spy.end > 30000 ? 0 : 1)}k`} tick={{ fontSize: 11, fill: 'var(--muted)' }} width={44} domain={['auto', 'auto']} />
             <Tooltip formatter={(v) => money(v)} labelFormatter={fmtDay} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, fontSize: 12 }} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Line dataKey="mine" name="Your picks" stroke="var(--accent)" strokeWidth={2.5} dot={false} />
@@ -101,7 +111,7 @@ export default function PastPerformance({ holdings }) {
       <div className="mt-4 flex gap-2 text-[12.5px] text-muted">
         <TriangleAlert size={15} className="shrink-0 mt-0.5 text-warn" />
         <div className="grid gap-1">
-          <span>Hindsight: these are stocks you picked today, knowing how they did. Picking the same names 5 years ago would have meant knowing then what you know now, so past winners can make this look better than a real 5-year-old pick would have been.</span>
+          <span>Hindsight: these are stocks you picked today, knowing how they did. Picking the same names back then would have meant knowing then what you know now, so past winners can make this look better than a real 5-year-old pick would have been.</span>
           {late.length > 0 && <span>{late.map((s) => s.symbol).join(', ')} started trading after {fmtDay(r.from)}; their share sat in cash (earning nothing) until their first week of trading.</span>}
           {none.length > 0 && <span>No stored price history for {none.map((s) => s.symbol).join(', ')}; their share is kept as cash.</span>}
         </div>
