@@ -64,7 +64,7 @@ export function bestMatches(stocks, { top = 3, topOverall = 5 } = {}) {
   });
   const best = (list, score, n = top) => list.map((x) => ({ ...x, score: score(x) })).filter((x) => x.score != null)
     .sort((a, b) => b.score - a.score || (b.s.marketCap || 0) - (a.s.marketCap || 0)).slice(0, n);
-  const f = (key, x, rank) => ({ key, value: key === 'setup' ? x.s.setup : key === 'fairGap' ? x.s.fair?.vsMid ?? null : x.s[key], rank: rank ?? null });
+  const f = (key, x, rank) => ({ key, value: key === 'setup' ? x.s.setup : key === 'fairGap' ? x.s.fair?.vsMid ?? null : x.s[key], rank: rank ?? null, unverified: key === 'moatUsed' && !!x.s.moatUnverified });
 
   const cats = [
     {
@@ -78,19 +78,19 @@ export function bestMatches(stocks, { top = 3, topOverall = 5 } = {}) {
       how: 'At a Fibonacci buy level right now (bounce confirmed first), then the strongest business by quality, growth and balance sheet.',
       picks: best(scored.filter((x) => x.s.setup?.status === 'zone' || x.s.setup?.status === 'zone-confirmed'),
         (x) => (x.s.setup.status === 'zone-confirmed' ? 1 : 0) + (avg([x.groups.quality, x.groups.growth, x.groups.strength]) ?? 0))
-        .map((x) => ({ ...x, factors: [f('setup', x), f('rsi14', x), f('offHigh', x), f('fairGap', x, x.r('fair')), f('moatUsed', x, x.r('moat'))] })),
+        .map((x) => ({ ...x, factors: [f('setup', x), f('rsi14', x), f('offHigh', x), f('fairGap', x, x.r('fair')), f('moatUsed', x)] })),
     },
     {
       id: 'value', title: 'Best value',
-      how: 'Cheapest against growth (PEG), against its fair value range and on free cash flow. Profitable companies with a moat of 5 or more only, to avoid cheap-for-a-reason stocks.',
-      picks: best(scored.filter((x) => !x.s.gaapLossTtm && (x.s.moatUsed ?? 0) >= 5), (x) => x.groups.value)
+      how: 'Cheapest against growth (PEG), against its fair value range and on free cash flow. To avoid cheap-for-a-reason stocks: profitable, moat 5+, debt up to 3x EBITDA, and sales not shrinking over 3 years.',
+      picks: best(scored.filter((x) => !x.s.gaapLossTtm && (x.s.moatUsed ?? 0) >= 5 && !(x.s.netDebtToEbitda > 3) && !(x.s.revenueGrowth3y < 0)), (x) => x.groups.value)
         .map((x) => ({ ...x, factors: [f('peg', x, x.r('peg')), f('forwardPE', x, x.r('pe')), f('fairGap', x, x.r('fair')), f('fcfYield', x, x.r('fcf')), f('moatUsed', x)] })),
     },
     {
       id: 'quality', title: 'Highest quality',
       how: 'Strongest moat (counted twice), highest profit margin and least debt (loss-makers last).',
       picks: best(scored.filter((x) => x.groups.quality != null), (x) => avg([x.groups.quality, x.groups.quality, x.r('margin'), x.groups.strength]))
-        .map((x) => ({ ...x, factors: [f('moatUsed', x, x.r('moat')), f('ebitdaMargin', x, x.r('margin')), f('netDebtToEbitda', x, x.r('debt')), f('aiRisk', x)] })),
+        .map((x) => ({ ...x, factors: [f('moatUsed', x), f('ebitdaMargin', x, x.r('margin')), f('netDebtToEbitda', x, x.r('debt')), f('aiRisk', x)] })),
     },
     {
       id: 'growth', title: 'Fastest growth',

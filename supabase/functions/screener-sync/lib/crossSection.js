@@ -1,5 +1,5 @@
 // Scores that compare each stock with the rest of the universe:
-// the calculated moat score (1-8) and the Magic Formula rank.
+// the calculated moat score (1-8), the final moat (caps + written assessment) and the Magic Formula rank.
 import { roicOf } from './metrics.js';
 
 const median = (xs) => {
@@ -9,48 +9,81 @@ const median = (xs) => {
   return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
 };
 
-// Moat score v3 (calculated max 8). A moat leaves fingerprints in the numbers: high returns on capital that hold up
-// in bad years, prices and margins above the industry, and margins that don't erode.
-// v4 (2026-11-13): up to 10 years of annual reports, stock-based pay added back to operating profit (moatInputs).
-//   Return level        0–3   median return on operating capital: 8% → 0, 40%+ → 3 (straight line between)
-//   Durability          0–2   weakest year after setting aside one bad year per five: 5% → 0, 20%+ → 2
-//   Consistency         0–1   share of years with returns above 15%: 90%+ = 1, 70%+ = 0.5
-//   Pricing power       0–2   gross margin vs its industry's median: at/above = 1, +10 pts = 1.5, +20 pts = 2
-//   Margin premium      0–2   operating margin vs industry median: ≥2× = 2, ≥1.3× = 1, above = 0.5
-//   Erosion            −2–0   gross margin down 5+ pts over the period = −1 (2.5+ = −0.5); operating margin
-//                             down 5+ pts = −0.5; latest return under 60% of the earlier median = −0.5
-//   Loss years                operating loss in the last 3 years = −1 each; older ones −0.5 each, at most −1
-// Rounded to the nearest whole number, between 1 and 8. Calculated scores stop at 8 ("elite numbers"):
-// 9-10 mean a near-irreplaceable position (ASML-type choke point), which the figures can't show; that comes
-// from the written assessment (blendMoat, max 9) or the owner's own score (owner's scale, 2026-11-10: ASML 9+,
-// LIN ~8, Visa/Mastercard 8+). v4 calibration (scratch moat10 run, 2026-11-13): wide-moat 7+ 37/56 (v3 30/56),
-// no-moat 7+ 1/29 (v3 2/29); AXON 1→7, DDS 8→3, LIN 8→5 (2018 merger years), GEV stays 1 (spin-off).
-// Fewer than 4 years of financials, or a bank/insurer (no gross margin to read): no score, the owner sets one.
-// Calibrated against Morningstar's wide-moat list (VanEck MOAT holdings) and textbook no-moat industries:
-// see scripts/moat-eval.mjs.
+// Moat score v5 (2026-11-13, rebuilt to Jameson's spec "Moat score rebuild — implementation spec").
+// Three layers:
+//   1. Calculated score C (1–8) from up to 10 years of annual reports (moatScore below). Measures quality and market
+//      position: what the numbers can show. Stock-based pay added back to profit. Banks/insurers/REITs and fewer than
+//      5 years of history: no score.
+//        Return on capital    0–3   median yearly return: ≤8% = 0, ≥40% = 3, linear
+//        Durability           0–2   weakest year after ignoring one bad year in five: ≤5% = 0, ≥20% = 2, linear
+//        Consistency          0–1   share of years with return >15%: ≥90% = 1, ≥70% = 0.5
+//        Pricing power        0–2   gross margin vs industry median: ≥+20 pts = 2, ≥+10 = 1.5, ≥ median = 1, below = 0
+//        Margin vs peers      0–2   operating margin vs industry median: ≥2× = 2, ≥1.3× = 1, just above = 0.5
+//        Market position      0–2   share of its industry's revenue (FMP industry, US-listed universe): ≥30% = 2,
+//                                    ≥15% = 1.5, ≥8% = 1; fallback market-cap share; neither = 0
+//        Erosion             0 to −2 oldest 3-yr avg vs newest 3-yr avg of gross margin and of return: a fall of more
+//                                    than 2 pts counts; both fall = −2, one = −1
+//        Loss years                  −1 per loss year in the last 3; −0.5 per older loss year, older max −1
+//        Customer concentration  −1  largest customer >20% of revenue (manual flag, applied in finalMoat)
+//      Sum, round half up, clamp 1–8. Thresholds live in MOAT_DEFAULTS and can be tuned from scr_config (key 'moat').
+//   2. Hard caps (finalMoat): structural facts the formula can't see, set per company in scr_moat_flags.
+//   3. Written assessment W (1–9) + blend (finalMoat): F = min(round(0.6W + 0.4C), W + 1); no assessment → min(C, 6),
+//      marked "unverified — numbers only". The owner's own score overrides everything.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const half = (v) => Math.round(v * 2) / 2;
+const r1 = (v) => Math.round(v * 10) / 10;
+const roundHalfUp = (v) => Math.floor(v + 0.5);
 export const MOAT_CALC_MAX = 8;
 export const MOAT_YEARS = 10;
-
-// Final moat when a written assessment exists: 60% the judgement of the business (Morningstar's five sources),
-// 40% the numbers. Capped at 9; a 10 only comes from the owner's own score. Without numbers (banks, new
-// listings) the judgement stands alone.
+export const MOAT_DEFAULTS = {
+  minYears: 5,
+  roic: [0.08, 0.40], dur: [0.05, 0.20], consBar: 0.15, cons: [0.9, 0.7],
+  gm: [0.20, 0.10], om: [2, 1.3], pos: [0.30, 0.15, 0.08], erosionPts: 0.02,
+};
 export const MOAT_SOURCES = [
   ['intangibles', 'Brand, patents, licences'], ['switching', 'Switching costs'], ['network', 'Network effect'],
   ['cost', 'Cost advantage'], ['scale', 'One of very few players'],
 ];
-export function blendMoat(calc, review) {
-  if (!review) return calc ?? null;
-  if (calc == null) return Math.min(9, review.rating);
-  // 60% written judgement, 40% numbers; strong numbers can lift the written rating by at most 1 point
-  // (they can't create a moat the business doesn't have), weak numbers can pull it down further.
-  const blend = Math.round(0.6 * review.rating + 0.4 * calc);
-  return Math.min(9, review.rating + 1, Math.max(1, blend));
+
+// Layer 2: hard caps. Each flag is a structural fact set by hand (scr_moat_flags), reviewed yearly.
+export const MOAT_CAPS = [
+  { key: 'single_product', cap: 4, label: 'One product or segment is over 70% of revenue' },
+  { key: 'patent_cliff', cap: 4, label: 'Key patent expires within 5 years, no replacement over 20% of revenue' },
+  { key: 'mlm', cap: 4, label: 'Revenue depends on independent distributors / multi-level marketing' },
+  { key: 'fashion', cap: 6, label: 'Demand driven by fashion or trend cycles' },
+  { key: 'market_making', cap: 5, label: 'Main revenue is the bid-ask spread / market-making' },
+  { key: 'fragmented', cap: 5, label: 'Fragmented market and no switching costs' },
+  { key: 'big_customer', cap: 6, label: 'Largest customer is over 20% of revenue' },
+];
+export const MOAT_UNVERIFIED_MAX = 6;
+
+// Layers 2 and 3 together. parts = the calculated parts (card.moatParts); flags = scr_moat_flags row; review =
+// scr_moat_review row; override = the owner's own score. Returns everything the site shows.
+export function finalMoat({ parts, review = null, flags = null, override = null }) {
+  const has = (k) => !!flags?.[k];
+  let calc = null, calcRaw = null, calcBeforeCaps = null;
+  const caps = [];
+  if (parts?.length) {
+    calcRaw = parts.reduce((s, p) => s + (p.pts || 0), 0) - (has('big_customer') ? 1 : 0);
+    calcBeforeCaps = clamp(roundHalfUp(calcRaw), 1, MOAT_CALC_MAX);
+    calc = calcBeforeCaps;
+    for (const c of MOAT_CAPS) if (has(c.key)) { caps.push(c); calc = Math.min(calc, c.cap); }
+  }
+  const W = review?.rating ?? null;
+  let final, unverified = false;
+  if (W != null) final = calc == null ? Math.min(9, W) : Math.min(9, W + 1, Math.max(1, roundHalfUp(0.6 * W + 0.4 * calc)));
+  else if (calc != null) { final = Math.min(calc, MOAT_UNVERIFIED_MAX); unverified = true; }
+  else final = null;
+  const lowestCap = caps.length ? Math.min(...caps.map((c) => c.cap)) : null;
+  return {
+    final: override ?? final, written: W, calc, calcBeforeCaps, calcRaw, caps, unverified: override == null && unverified,
+    // A structural cap below the written rating is a contradiction a person should look at; the written score is never auto-capped.
+    needsReview: W != null && lowestCap != null && W > lowestCap,
+    concentration: has('big_customer'), override,
+  };
 }
+
 // Moat inputs from annual reports (newest first, FMP field names; up to 10 years). Stock-based pay is added back
-// to operating profit: it's a real cost to shareholders, but it doesn't say whether rivals can copy the business,
-// and leaving it in made companies paid largely in stock (AXON, PLTR) look like loss-makers.
+// to operating profit: it's a real cost to shareholders, but it doesn't say whether rivals can copy the business.
 export function moatInputs(fy, years = MOAT_YEARS) {
   const rows = (fy || []).filter((r) => r.revenue > 0).slice(0, years);
   const sbc = (r) => Math.max(0, r.stockBasedCompensation || 0);
@@ -71,80 +104,74 @@ export function moatInputs(fy, years = MOAT_YEARS) {
 const realGm = (x) => (x == null || x >= 0.995 ? null : x);
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
-export function moatScore(m, ctx) {
+export function moatScore(m, ctx, opt = MOAT_DEFAULTS) {
+  const O = { ...MOAT_DEFAULTS, ...opt };
   const years = Math.max(m.roicYears?.length || 0, m.incomeYears || 0);
-  if (years < 4) {
-    return { score: null, raw: null, parts: [], reason: `Only ${years} year${years === 1 ? '' : 's'} of financials. Too little history to calculate a moat; set your own score.` };
+  if (years < O.minYears) {
+    return { score: null, raw: null, parts: [], reason: `Only ${years} year${years === 1 ? '' : 's'} of financials (needs ${O.minYears}). Too little history to calculate a moat.` };
   }
   if (/Banks|Insurance|Mortgage|REIT/.test(m.industry || '') || !(m.grossMarginYears?.length >= 3)) {
-    return { score: null, raw: null, parts: [], reason: 'Banks, insurers and similar lenders don\'t report the margins this formula reads; set your own score.' };
+    return { score: null, raw: null, parts: [], reason: 'Banks, insurers and similar lenders don\'t report the margins this formula reads.' };
   }
   const parts = [];
-  const add = (label, pts, max, detail) => parts.push({ label, pts: half(pts), max, detail });
+  const add = (key, label, pts, max, detail) => parts.push({ key, label, pts: r1(pts), max, detail });
   const pct = (x) => (x == null ? 'n/a' : `${(x * 100).toFixed(1)}%`);
   const yr = (x) => (x >= 1 ? '>100%' : `${Math.round(x * 100)}%`);
   const roic = m.roicYears || [];
+  const lin = (v, [lo, hi], max) => clamp(((v - lo) / (hi - lo)) * max, 0, max);
 
   const med = m.roicMedian ?? m.roicAvg;
-  add('Return on operating capital', med == null ? 0 : clamp(((med - 0.08) / 0.32) * 3, 0, 3), 3,
+  add('return', 'Return on capital', med == null ? 0 : lin(med, O.roic, 3), 3,
     med == null ? 'n/a' : `median ${med >= 1 ? '>100%' : pct(med)}; yearly ${roic.map(yr).join(', ')} (newest first)`);
 
-  // Durability: a bad year is allowed per five (COVID, a recession); the next-worst year is what counts.
   const sorted = [...roic].sort((a, b) => a - b);
   const skip = Math.floor(sorted.length / 5);
   const weak = sorted.length ? sorted[Math.min(skip, sorted.length - 1)] : null;
-  add('Durability', weak == null ? 0 : clamp(((weak - 0.05) / 0.15) * 2, 0, 2), 2,
+  add('durability', 'Durability', weak == null ? 0 : lin(weak, O.dur, 2), 2,
     weak == null ? 'n/a' : `${skip ? `worst year${skip > 1 ? 's' : ''} set aside; ` : ''}weakest remaining year ${yr(weak)} (worst ${yr(sorted[0])})`);
-  const above15 = roic.filter((x) => x > 0.15).length;
-  const share15 = roic.length ? above15 / roic.length : 0;
-  add('Consistency', share15 >= 0.9 ? 1 : share15 >= 0.7 ? 0.5 : 0, 1, `${above15} of ${roic.length} years above 15%`);
 
-  // A gross margin of ~100% means the company reports no cost of revenue (Mastercard does this, Visa
-  // doesn't), not that it has perfect pricing. Those get the neutral industry-level score.
+  const above = roic.filter((x) => x > O.consBar).length;
+  const share = roic.length ? above / roic.length : 0;
+  add('consistency', 'Consistency', share >= O.cons[0] ? 1 : share >= O.cons[1] ? 0.5 : 0, 1, `${above} of ${roic.length} years above ${Math.round(O.consBar * 100)}%`);
+
+  // A gross margin of ~100% means no cost of revenue is reported (Mastercard), not perfect pricing: industry level.
   const gm = realGm(m.grossMargin ?? m.grossMarginYears?.[0]);
   const indGm = ctx.industryMedianGrossMargin?.[m.industry];
   const gap = gm != null && indGm != null ? gm - indGm : null;
-  if (gm == null && indGm != null) add('Pricing power', 1, 2, 'no cost of revenue reported, so gross margin can\'t be compared; scored as industry level');
-  else add('Pricing power', gap == null ? 0 : gap >= 0.20 ? 2 : gap >= 0.10 ? 1.5 : gap >= 0 ? 1 : 0, 2,
-    `gross margin ${pct(gm)} vs ${pct(indGm)} industry median`);
+  if (gm == null && indGm != null) add('pricing', 'Pricing power', 1, 2, 'no cost of revenue reported, so gross margin can\'t be compared; scored as industry level');
+  else add('pricing', 'Pricing power', gap == null ? 0 : gap >= O.gm[0] ? 2 : gap >= O.gm[1] ? 1.5 : gap >= 0 ? 1 : 0, 2, `gross margin ${pct(gm)} vs ${pct(indGm)} industry median`);
 
   const indOm = ctx.industryMedianOpMargin?.[m.industry];
   const om = m.operatingMargin;
   const ratio = om > 0 && indOm > 0 ? om / indOm : null;
-  add('Margin premium over peers', om == null || indOm == null || om <= 0 ? 0 : ratio >= 2 ? 2 : ratio >= 1.3 ? 1 : om > indOm ? 0.5 : 0, 2,
+  add('margin', 'Margin vs peers', om == null || indOm == null || om <= 0 ? 0 : ratio >= O.om[0] ? 2 : ratio >= O.om[1] ? 1 : om > indOm ? 0.5 : 0, 2,
     `${pct(om)} operating margin vs ${pct(indOm)} median of ${ctx.industrySize?.[m.industry] ?? '?'} ${m.industry} stocks`);
 
-  // Erosion: compare the oldest years with the newest (two each for 5 years of data, three for 6+).
-  let erosion = 0; const why = [];
-  const g = m.grossMarginYears || [], o = m.opMarginYears || [];
-  if (g.length >= 4) {
-    const k = g.length >= 6 ? 3 : 2;
-    const drop = mean(g.slice(-k)) - mean(g.slice(0, k));
-    if (drop >= 0.05) { erosion -= 1; why.push(`gross margin down ${(drop * 100).toFixed(1)} pts`); }
-    else if (drop >= 0.025) { erosion -= 0.5; why.push(`gross margin down ${(drop * 100).toFixed(1)} pts`); }
-  }
-  if (o.length >= 4) {
-    const k = o.length >= 6 ? 3 : 2;
-    const drop = mean(o.slice(-k)) - mean(o.slice(0, k));
-    if (drop >= 0.05) { erosion -= 0.5; why.push(`operating margin down ${(drop * 100).toFixed(1)} pts`); }
-  }
-  if (roic.length >= 4) {
-    const older = [...roic.slice(1)].sort((a, b) => a - b)[Math.floor((roic.length - 2) / 2)];
-    if (older > 0.1 && roic[0] < 0.6 * older) { erosion -= 0.5; why.push(`latest return ${yr(roic[0])} vs earlier ${yr(older)}`); }
-  }
-  add('Erosion', Math.max(-2, erosion), 0, why.length ? why.join('; ') : 'no erosion in margins or returns');
+  // Market position: share of its industry's revenue among US-listed companies above $500M (fallback: market value).
+  const revShare = ctx.industryShare?.[m.symbol], capShare = ctx.industryCapShare?.[m.symbol];
+  const sh = revShare ?? capShare;
+  add('position', 'Market position', sh == null ? 0 : sh >= O.pos[0] ? 2 : sh >= O.pos[1] ? 1.5 : sh >= O.pos[2] ? 1 : 0, 2,
+    sh == null ? 'no revenue or market value to compare' : `${pct(sh)} of ${m.industry} ${revShare != null ? 'revenue' : 'market value'} (${ctx.industrySize?.[m.industry] ?? '?'} companies)`);
+
+  // Erosion: oldest 3 years vs newest 3 years, gross margin and return on capital; a fall of more than 2 points counts.
+  const g = m.grossMarginYears || [];
+  const fall = (xs) => (xs.length >= 4 ? mean(xs.slice(-3)) - mean(xs.slice(0, 3)) : null);
+  const gFall = fall(g), rFall = fall(roic);
+  const gDown = gFall != null && gFall > O.erosionPts, rDown = rFall != null && rFall > O.erosionPts;
+  const why = [];
+  if (gDown) why.push(`gross margin down ${(gFall * 100).toFixed(1)} pts`);
+  if (rDown) why.push(`return on capital down ${(rFall * 100).toFixed(1)} pts`);
+  add('erosion', 'Erosion', (gDown ? -1 : 0) + (rDown ? -1 : 0) || 0, 0, why.length ? `${why.join('; ')} (oldest 3 years vs newest 3)` : 'margins and returns not falling');
 
   const om5 = m.opMarginYears || [];
   const recent = om5.slice(0, 3).filter((x) => x < 0).length, older = om5.slice(3).filter((x) => x < 0).length;
-  const olderPts = Math.min(1, older * 0.5);   // old losses count, but at most 1 point in total
-  // Older stored data has only a loss-year count; use it until the stock is refreshed.
-  if (!om5.length && m.lossYears) add('Loss years', -m.lossYears, 0, `operating loss in ${m.lossYears} of the last ${m.incomeYears || 5} years`);
-  if (recent || older) add('Loss years', -(recent + olderPts), 0,
-    `operating loss in ${recent} of the last 3 years${older ? ` and ${older} of the ${om5.length - 3} before` : ''}${m.adjusted ? ' (stock-based pay added back)' : ''}`);
+  const lossPts = om5.length ? recent + Math.min(1, older * 0.5) : m.lossYears || 0;
+  if (lossPts) add('losses', 'Loss years', -lossPts, 0,
+    om5.length ? `operating loss in ${recent} of the last 3 years${older ? ` and ${older} of the ${om5.length - 3} before` : ''}${m.adjusted ? ' (stock-based pay added back)' : ''}`
+      : `operating loss in ${m.lossYears} of the last ${m.incomeYears || 5} years`);
 
   const total = parts.reduce((s, p) => s + p.pts, 0);
-  // The numbers can show an elite business (8) but not whether it is irreplaceable; 9-10 are set by the owner.
-  return { score: clamp(Math.round(total), 1, MOAT_CALC_MAX), raw: total, parts, capped: Math.round(total) > MOAT_CALC_MAX };
+  return { score: clamp(roundHalfUp(total), 1, MOAT_CALC_MAX), raw: r1(total), parts };
 }
 
 // Context built once over the whole universe: industry medians and revenue shares.
@@ -157,15 +184,17 @@ export function buildContext(all) {
     const k = Math.floor(v.length / 2);
     return v.length % 2 ? v[k] : (v[k - 1] + v[k]) / 2;
   };
-  const industryMedianOpMargin = {}, industryMedianGrossMargin = {}, industryShare = {}, industrySize = {};
+  const industryMedianOpMargin = {}, industryMedianGrossMargin = {}, industryShare = {}, industryCapShare = {}, industrySize = {};
   for (const [ind, list] of Object.entries(byInd)) {
     industryMedianOpMargin[ind] = median(list.map((m) => m.operatingMargin));
     industryMedianGrossMargin[ind] = median(list.map((m) => realGm(m.grossMargin)));
     const total = list.reduce((s, m) => s + (m.revenueTtm ?? m.revenue ?? 0), 0);
     for (const m of list) if (total > 0 && (m.revenueTtm ?? m.revenue)) industryShare[m.symbol] = (m.revenueTtm ?? m.revenue) / total;
+    const capTotal = list.reduce((s, m) => s + (m.marketCap || 0), 0);
+    for (const m of list) if (capTotal > 0 && m.marketCap) industryCapShare[m.symbol] = m.marketCap / capTotal;
     industrySize[ind] = list.length;
   }
-  return { industryMedianOpMargin, industryMedianGrossMargin, industryShare, industrySize };
+  return { industryMedianOpMargin, industryMedianGrossMargin, industryShare, industryCapShare, industrySize };
 }
 
 // Greenblatt Magic Formula: rank by earnings yield (EBIT/EV) + rank by return on capital,

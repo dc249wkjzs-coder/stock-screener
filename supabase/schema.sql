@@ -166,3 +166,19 @@ create table if not exists public.scr_portfolio (
 );
 alter table public.scr_portfolio enable row level security;
 create policy "own portfolio" on public.scr_portfolio for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Moat v5 (2026-11-13): written assessments state durability and invalidation; structural flags for the caps;
+-- tunable thresholds for the calculated score.
+alter table public.scr_moat_review add column if not exists durability text, add column if not exists invalidation text;
+alter table public.scr_moat_review drop constraint if exists scr_moat_review_rating_check;
+alter table public.scr_moat_review add constraint scr_moat_review_rating_check check (rating between 1 and 9);
+create table if not exists public.scr_moat_flags (
+  symbol text primary key,
+  single_product boolean not null default false, patent_cliff boolean not null default false, mlm boolean not null default false,
+  fashion boolean not null default false, market_making boolean not null default false, fragmented boolean not null default false,
+  big_customer boolean not null default false, note text, reviewed_at date not null default current_date
+);
+alter table public.scr_moat_flags enable row level security;
+create policy "read moat flags" on public.scr_moat_flags for select to authenticated using (true);
+create table if not exists public.scr_config (key text primary key, value jsonb not null, updated_at timestamptz not null default now());
+alter table public.scr_config enable row level security;   -- server only (no policies)

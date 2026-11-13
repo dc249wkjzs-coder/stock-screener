@@ -12,11 +12,11 @@ import { Panel, Badge, Empty } from '@/components/ui'
 import { fx, fp, fn, usd, cap } from '@/components/pillarUi'
 import { marginTier } from '@shared/pillars.js'
 import { checks } from '@shared/criteria.js'
-import { MOAT_SOURCES } from '@shared/crossSection.js'
+import { MOAT_SOURCES, MOAT_UNVERIFIED_MAX } from '@shared/crossSection.js'
 import { date as fdate } from '@/lib/format'
 
 const CHECK_TERM = { themes: null, moatMin: 'moat', debtMax: 'net-debt-ebitda', pe: 'forward-pe', pegMax: 'peg', growthMin: 'eps-growth', marginMin: 'ebitda-margin', profitable: 'gaap-adjusted', noDilution: 'financing', capMin: 'market-cap', betaMax: 'beta', aiRiskMax: 'ai-risk', entry: 'buy-zone' }
-const MOAT_TERM = { 'Return on operating capital': 'roic', Durability: 'durability', Consistency: 'track-record', 'Pricing power': 'gross-margin', 'Margin premium over peers': 'margin-premium', Erosion: 'erosion', 'Loss years': 'loss-years' }
+const MOAT_TERM = { 'Return on capital': 'roic', 'Return on operating capital': 'roic', 'Margin vs peers': 'margin-premium', 'Market position': 'market-position', Durability: 'durability', Consistency: 'track-record', 'Pricing power': 'gross-margin', 'Margin premium over peers': 'margin-premium', Erosion: 'erosion', 'Loss years': 'loss-years' }
 
 export default function Stock() {
   const { symbol } = useParams()
@@ -152,26 +152,58 @@ function MoatPanel({ s }) {
   const [val, setVal] = useState(o?.moat ?? '')
   const [note, setNote] = useState(o?.note ?? '')
   const parts = s.moatParts || []
+  const m = s.moatInfo || {}
+  const R = s.moatReview
+  const Box = ({ label, v, sub, strong }) => (
+    <div className={`rounded-xl px-3 py-2 ${strong ? 'bg-accent-soft' : 'bg-surface-2'}`}>
+      <div className="text-[11.5px] text-muted">{label}</div>
+      <div className={`text-[20px] font-semibold num ${strong ? 'text-accent' : ''}`}>{v ?? '—'}</div>
+      {sub && <div className="text-[11px] text-faint leading-tight">{sub}</div>}
+    </div>
+  )
   return (
-    <Panel title={`Moat ${s.moatUsed ?? '—'}/10`} subtitle={o ? `Your own score. Otherwise it would be ${s.moatBlend ?? 'none'}.`
-      : s.moatReview ? `${s.moatReview.rating}/10 business assessment (60%) + ${s.moat?.score ?? 'no'} from the numbers (40%).`
-      : s.moat?.score == null ? (s.moat?.reason || 'No calculated score.') : 'From up to 10 years of annual reports. No written assessment yet.'}>
-      {s.moatReview && (
+    <Panel title={<>Moat {s.moatUsed ?? '—'}/10{m.unverified && <span className="ml-2 align-middle rounded-full bg-warn-soft text-warn px-2 py-0.5 text-[11.5px] font-semibold">unverified — numbers only</span>}</>}
+      subtitle={o ? 'Your own score overrides everything below.'
+        : R ? 'Final = 60% written assessment + 40% calculated, never more than 1 point above the written rating.'
+        : m.calc != null ? `No written assessment yet, so the numbers alone count, up to ${MOAT_UNVERIFIED_MAX}. 7 and above needs a written assessment.`
+        : (s.moat?.reason || 'No calculated score.')}>
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <Box label="Written" v={m.written != null ? `${m.written}/9` : null} sub={m.written == null ? 'not assessed' : null} />
+        <Box label="Calculated" v={m.calc != null ? `${m.calc}/8` : null} sub={m.caps?.length ? `capped from ${m.calcBeforeCaps}` : m.concentration ? 'incl. −1 customer' : null} />
+        <Box label={o ? 'Your score' : 'Final'} v={s.moatUsed != null ? `${s.moatUsed}/10` : null} strong />
+      </div>
+      {m.needsReview && (
+        <div className="mb-4 rounded-xl border border-warn/40 bg-warn-soft px-3 py-2 text-[12.5px]">
+          <b className="text-warn">Needs review:</b> a structural cap ({Math.min(...m.caps.map((c) => c.cap))}) is below the written rating ({m.written}). The written rating is kept; check whether it still holds.
+        </div>
+      )}
+      {m.caps?.length > 0 && (
+        <div className="mb-4">
+          <div className="text-[12.5px] font-semibold mb-1"><Term id="moat-caps">Structural caps</Term></div>
+          <ul className="grid gap-1 text-[12.5px]">{m.caps.map((c) => <li key={c.key}>· {c.label}: <b>calculated score at most {c.cap}</b></li>)}</ul>
+          {s.moatFlags?.note && <p className="text-[12px] text-muted mt-1">{s.moatFlags.note}</p>}
+        </div>
+      )}
+      {R && (
         <div className="mb-4 pb-4 border-b border-line">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-[12.5px] font-semibold"><Term id="moat-sources">Business assessment</Term> · {s.moatReview.rating}/10</div>
-            <div className="text-[11.5px] text-faint">{s.moatReview.rated_by}, {fdate(s.moatReview.rated_at)}</div>
+            <div className="text-[12.5px] font-semibold"><Term id="moat-sources">Written assessment</Term> · {R.rating}/9</div>
+            <div className="text-[11.5px] text-faint">{R.rated_by}, {fdate(R.rated_at)}</div>
           </div>
           <div className="flex flex-wrap gap-1.5 mt-2">
             {MOAT_SOURCES.map(([k, label]) => {
-              const v = s.moatReview.sources?.[k] ?? 0
+              const v = R.sources?.[k] ?? 0
               return <span key={k} className={`rounded-md px-2 py-0.5 text-[12px] font-semibold ${v === 2 ? 'bg-gain-soft text-gain' : v === 1 ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-faint'}`}>{label}: {['none', 'some', 'strong'][v]}</span>
             })}
           </div>
-          <p className="text-[13px] mt-2 leading-relaxed">{s.moatReview.why}</p>
+          <dl className="text-[13px] mt-2 grid gap-1 leading-relaxed">
+            <div><dt className="inline font-semibold">Source: </dt><dd className="inline">{R.why}</dd></div>
+            {R.durability && <div><dt className="inline font-semibold">Lasts: </dt><dd className="inline">{R.durability}</dd></div>}
+            {R.invalidation && <div><dt className="inline font-semibold">What would break it: </dt><dd className="inline">{R.invalidation}</dd></div>}
+          </dl>
         </div>
       )}
-      {parts.length > 0 && <div className="text-[12.5px] font-semibold mb-1">From the numbers · {s.moat?.score}/8</div>}
+      {parts.length > 0 && <div className="text-[12.5px] font-semibold mb-1">Calculated, from the numbers · {m.calcRaw != null ? m.calcRaw.toFixed(1) : '—'} points → {m.calcBeforeCaps}/8{m.caps?.length ? ` → capped ${m.calc}` : ''}</div>}
       <table className="w-full text-[13px]">
         <tbody>
           {parts.map((p) => (
@@ -180,19 +212,25 @@ function MoatPanel({ s }) {
               <td className="py-1.5 num text-right whitespace-nowrap font-semibold">{p.pts} / {p.max}</td>
             </tr>
           ))}
+          {m.concentration && (
+            <tr className="border-b border-line/60 last:border-0">
+              <td className="py-1.5 pr-2">Customer concentration<div className="text-[12px] text-muted">largest customer over 20% of revenue</div></td>
+              <td className="py-1.5 num text-right whitespace-nowrap font-semibold">−1 / 0</td>
+            </tr>
+          )}
         </tbody>
       </table>
       <div className="mt-4 grid gap-2">
         <div className="text-[12.5px] font-semibold text-muted">Override the score</div>
         <div className="flex flex-wrap gap-2">
           <select className="input w-auto" value={val} onChange={(e) => setVal(e.target.value)}>
-            <option value="">Use calculated</option>
+            <option value="">Use the final score</option>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
           <input className="input flex-1 min-w-40" placeholder="Why (e.g. choke point in…)" value={note} onChange={(e) => setNote(e.target.value)} />
           <button className="btn btn-primary" onClick={() => d.saveOverride(s.symbol, val === '' ? null : Number(val), note)}>Save</button>
         </div>
-        <div className="text-[12px] text-faint">The numbers measure the results of a moat (returns and margins) and stop at 8; the written assessment judges where the advantage comes from. Combined scores stop at 9: a 10 is yours to set.</div>
+        <div className="text-[12px] text-faint">The numbers measure results (returns, margins, market share) and stop at 8; structural caps cover what the numbers can't see; the written assessment judges where the advantage comes from. Combined scores stop at 9: a 10 is yours to set.</div>
       </div>
     </Panel>
   )

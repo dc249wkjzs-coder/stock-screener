@@ -32,7 +32,8 @@ const topPct = (r) => `top ${Math.max(1, Math.ceil((1 - r) * 100))}%`
 function Chip({ f }) {
   if (f.key === 'setup') return f.value ? <SetupChip setup={f.value} long /> : null
   if (f.value == null) return null
-  const [fmt] = FMT[f.key] || [(v) => String(v)]
+  const [fmt0] = FMT[f.key] || [(v) => String(v)]
+  const fmt = f.unverified ? (v) => `${fmt0(v)} (unverified)` : fmt0
   const strong = f.rank != null && f.rank >= 0.8
   return (
     <span className={`inline-flex items-center gap-1 rounded px-1.5 py-px text-[11.5px] whitespace-nowrap ${strong ? 'bg-gain-soft text-gain' : 'bg-surface-2 text-muted'}`}>

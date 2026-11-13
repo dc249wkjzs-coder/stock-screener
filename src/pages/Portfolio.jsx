@@ -152,7 +152,7 @@ export default function Portfolio() {
                       </div>
                       {weight == null && <div className="text-[10.5px] text-faint">equal share</div>}
                     </td>
-                    <td className="num font-semibold">{s.moatUsed ?? '—'}</td>
+                    <td className="num font-semibold">{s.moatUsed ?? '—'}{s.moatUnverified && <div className="text-[10.5px] font-normal text-warn" title="Unverified — numbers only: no written assessment yet, so capped at 6">unverified</div>}</td>
                     <td className="num">{fx(s.forwardPE)}</td>
                     <td className="num">{fx(s.peg, 2)}</td>
                     <td className="num">{fp(s.epsGrowth)}</td>

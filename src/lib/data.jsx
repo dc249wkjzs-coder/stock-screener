@@ -3,7 +3,7 @@ import { DEMO, supabase } from './supabase'
 import { DEFAULT_RULES } from '@shared/pillars.js'
 import { fairValue, entrySetup } from '@shared/valuation.js'
 import { BLANK } from '@shared/criteria.js'
-import { blendMoat } from '@shared/crossSection.js'
+import { finalMoat } from '@shared/crossSection.js'
 
 // FMP lists one share class per company; map the other class to it (GOOGL → GOOG).
 export const ALIASES = { GOOGL: 'GOOG', 'BRK.B': 'BRK-B', 'BRK.A': 'BRK-B', 'BRK-A': 'BRK-B' }
@@ -37,7 +37,7 @@ const saveDemoPortfolio = (pf) => { try { localStorage.setItem(DEMO_PF_KEY, JSON
 const PASS = { overall: 'pass', pillars: {}, missing: [] }
 
 export function DataProvider({ children }) {
-  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], overrides: {}, ai: {}, reviews: {}, presets: [], portfolio: [], lastScored: null })
+  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], overrides: {}, ai: {}, reviews: {}, flags: {}, presets: [], portfolio: [], lastScored: null })
   const [screen, setScreenState] = useState(loadScreen)
   const [toast, setToast] = useState(null)
   const flash = useCallback((msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200) }, [])
@@ -53,15 +53,16 @@ export function DataProvider({ children }) {
         setState({ loading: false, error: null, cards: sample.cards, ai: sample.ai || {}, pending: [], overrides: {}, presets: [], portfolio: loadDemoPortfolio(), lastScored: sample.scoredAt })
         return
       }
-      const [rows, pending, overrides, ai, presets, reviews, portfolio] = await Promise.all([
+      const [rows, pending, overrides, ai, presets, reviews, portfolio, flags] = await Promise.all([
         selectAll('scr_stocks', 'symbol,card,scored_at,fundamentals_at,roic:metrics->roicMedian', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')),
         // Stocks in the universe whose financials haven't been downloaded and scored yet.
         selectAll('scr_stocks', 'symbol,name', (q) => q.eq('active', true).is('card', null).order('symbol')),
         selectAll('scr_overrides', 'symbol,moat,note'),
         selectAll('scr_ai', 'symbol,risk,benefit,risk_reasons,benefit_reasons,summary,rated_at,rated_by').catch(() => []),
         supabase.from('scr_presets').select('id,name,criteria').order('name').then((r) => r.data || []),
-        selectAll('scr_moat_review', 'symbol,rating,sources,why,rated_at,rated_by').catch(() => []),
+        selectAll('scr_moat_review', 'symbol,rating,sources,why,durability,invalidation,rated_at,rated_by').catch(() => []),
         supabase.from('scr_portfolio').select('symbol,weight,added_at').order('added_at').then((r) => r.data || []),
+        selectAll('scr_moat_flags', '*').catch(() => []),
       ])
       setState({
         loading: false, error: null,
@@ -72,6 +73,7 @@ export function DataProvider({ children }) {
         presets,
         portfolio: portfolio.map((p) => ({ symbol: p.symbol, weight: p.weight == null ? null : Number(p.weight) })),
         reviews: Object.fromEntries(reviews.map((r) => [r.symbol, r])),
+        flags: Object.fromEntries(flags.map((f) => [f.symbol, f])),
         lastScored: rows.reduce((m, r) => (r.scored_at > m ? r.scored_at : m), ''),
       })
     } catch (e) {
@@ -86,12 +88,15 @@ export function DataProvider({ children }) {
     const a = state.ai?.[c.symbol]
     const s = { ...c, moatOverride: o?.moat ?? null, ai: a || null, aiRisk: a?.risk ?? null, aiBenefit: a?.benefit ?? null }
     s.moatReview = state.reviews?.[c.symbol] || null
-    s.moatBlend = blendMoat(c.moat?.score ?? null, s.moatReview)
-    s.moatUsed = s.moatOverride ?? s.moatBlend
+    // Moat v5: calculated parts → structural caps → written assessment blend (or numbers-only, max 6) → your own score.
+    s.moatFlags = state.flags?.[c.symbol] || null
+    s.moatInfo = finalMoat({ parts: c.moatParts, review: s.moatReview, flags: s.moatFlags, override: s.moatOverride })
+    s.moatUsed = s.moatInfo.final
+    s.moatUnverified = s.moatInfo.unverified
     // PEG from growth above 100% is a base effect (earnings bouncing back from a very weak year), not a cheap price.
     if (s.peg != null && s.epsGrowth > 1) { s.pegRaw = s.peg; s.peg = null; s.pegNote = `PEG left out: expected growth of ${Math.round(s.epsGrowth * 100)}% starts from a very weak year` }
     return { ...s, fair: fairValue(s, DEFAULT_RULES), setup: entrySetup(s, PASS, DEFAULT_RULES, null) }
-  }), [state.cards, state.overrides, state.ai, state.reviews])
+  }), [state.cards, state.overrides, state.ai, state.reviews, state.flags])
 
   const bySymbol = useMemo(() => Object.fromEntries(stocks.map((s) => [s.symbol, s])), [stocks])
 

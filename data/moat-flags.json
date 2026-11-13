@@ -1,0 +1,59 @@
+{
+  "_about": "Structural flags for the moat caps (spec layer 2), set by hand, reviewed yearly. single_product = one drug/product whose loss would sink the company (not one business line); patent_cliff = key patent expires within 5 years with no replacement over 20% of revenue; mlm; fashion; market_making; fragmented = fragmented market and no switching costs; big_customer = largest customer over 20% of revenue (disclosed only; governments not counted). Loaded with scripts/load-moat-flags.mjs.",
+  "reviewed_at": "2026-11-13",
+  "flags": {
+    "IRWD": {
+      "single_product": true,
+      "patent_cliff": true,
+      "note": "LINZESS is about 95% of revenue; licensed generics of the main doses from March 2029."
+    },
+    "MRNA": {
+      "single_product": true,
+      "note": "COVID vaccine (Spikevax) is most of revenue."
+    },
+    "ARGX": {
+      "single_product": true,
+      "note": "Vyvgart is nearly all revenue."
+    },
+    "MRK": {
+      "patent_cliff": true,
+      "note": "Keytruda (about 45% of revenue) loses US patent protection around 2028."
+    },
+    "BMY": {
+      "patent_cliff": true,
+      "note": "Eliquis and Opdivo lose patent protection around 2028."
+    },
+    "PFE": {
+      "patent_cliff": true,
+      "note": "Several large drugs lose patent protection by 2028."
+    },
+    "HLF": {
+      "mlm": true,
+      "note": "Multi-level marketing; 2016 FTC settlement."
+    },
+    "TPR": {
+      "fashion": true,
+      "note": "Mid-priced fashion handbags."
+    },
+    "NKE": {
+      "fashion": true,
+      "note": "Sneaker and sportswear demand follows trends."
+    },
+    "VIRT": {
+      "market_making": true,
+      "note": "Market-making revenue from spreads."
+    },
+    "SBC": {
+      "fragmented": true,
+      "note": "Fragmented aesthetic-clinic market, patients can switch easily."
+    },
+    "CVNA": {
+      "fragmented": true,
+      "note": "Fragmented used-car market, buyers shop on price."
+    },
+    "COR": {
+      "big_customer": true,
+      "note": "Walgreens and Boots were about 25% of fiscal 2025 revenue."
+    }
+  }
+}

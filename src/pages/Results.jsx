@@ -72,7 +72,7 @@ export default function Results() {
                         <div className="text-[12px] text-muted truncate">{s.name}</div>
                       </td>
                       <td className="text-left!"><SetupChip setup={s.setup} />{s.setup.status === 'wait' && <div className="text-[11.5px] text-muted num">{s.setup.title.replace('Wait for ', '')}</div>}</td>
-                      <td className="num font-semibold">{s.moatUsed ?? '—'}{s.moatOverride != null && <span className="text-accent" title="Your own score">*</span>}</td>
+                      <td className="num font-semibold">{s.moatUsed ?? '—'}{s.moatOverride != null && <span className="text-accent" title="Your own score">*</span>}{s.moatUnverified && <div className="text-[10.5px] font-normal text-warn" title="Unverified — numbers only: no written assessment yet, so capped at 6">unverified</div>}</td>
                       <td className="num">{fx(s.forwardPE)}</td>
                       <td className="num">{fx(s.peg, 2)}</td>
                       <td className="num">{fp(s.epsGrowth)}</td>

@@ -64,7 +64,7 @@ export function bestMatches(stocks, { top = 3, topOverall = 5 } = {}) {
   });
   const best = (list, score, n = top) => list.map((x) => ({ ...x, score: score(x) })).filter((x) => x.score != null)
     .sort((a, b) => b.score - a.score || (b.s.marketCap || 0) - (a.s.marketCap || 0)).slice(0, n);
-  const f = (key, x, rank) => ({ key, value: key === 'setup' ? x.s.setup : key === 'fairGap' ? x.s.fair?.vsMid ?? null : x.s[key], rank: rank ?? null });
+  const f = (key, x, rank) => ({ key, value: key === 'setup' ? x.s.setup : key === 'fairGap' ? x.s.fair?.vsMid ?? null : x.s[key], rank: rank ?? null, unverified: key === 'moatUsed' && !!x.s.moatUnverified });
 
   const cats = [
     {
