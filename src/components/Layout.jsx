@@ -4,6 +4,7 @@ import { useData } from '@/lib/data'
 import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
 import StockCart from '@/components/StockCart'
+import ThemeSwitch, { ThemeButton } from '@/components/ThemeSwitch'
 
 export const NAV = [
   { to: '/', label: 'Stock finder', icon: SlidersHorizontal },
@@ -39,6 +40,7 @@ export default function Layout() {
           ))}
         </nav>
         <div className="mt-auto px-5 pb-5 text-[12px] text-muted grid gap-2">
+          <ThemeSwitch />
           <div>Scores updated {ago(d.lastScored)}</div>
           {!d.demo && <button className="flex items-center gap-2 hover:text-fg" onClick={() => supabase.auth.signOut()}><LogOut size={14} /> Sign out</button>}
         </div>
@@ -49,7 +51,8 @@ export default function Layout() {
           <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
             <Logo small />
             <span className="font-semibold">Screener</span>
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-2">
+              <ThemeButton />
               <StockCart />
               {!d.demo && <button className="text-[12px] text-muted flex items-center gap-1" onClick={() => supabase.auth.signOut()}><LogOut size={13} /> Sign out</button>}
             </div>
