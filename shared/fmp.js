@@ -89,6 +89,21 @@ export function classifyProspectusText(text) {
   return { kind: 'unknown', note: 'Could not tell from the cover' };
 }
 
+// Long history for the backtest: 12 annual reports and weekly closes since 2016 (split-adjusted for
+// valuation, dividend-adjusted for returns). Five calls; statements are skipped for funds (benchmark).
+export async function fetchHistory(symbol, apiKey, { statements = true, from = '2016-01-01' } = {}) {
+  const get = (path, params) => fmpGet(path, { symbol, ...params }, apiKey).catch((e) => ({ __error: String(e.message || e) }));
+  const [income, balance, cash, light, adj] = await Promise.all([
+    statements ? get('income-statement', { period: 'annual', limit: '12' }) : [],
+    statements ? get('balance-sheet-statement', { period: 'annual', limit: '12' }) : [],
+    statements ? get('cash-flow-statement', { period: 'annual', limit: '12' }) : [],
+    get('historical-price-eod/light', { from }),
+    get('historical-price-eod/dividend-adjusted', { from }),
+  ]);
+  if (!Array.isArray(light)) throw new Error(`prices: ${light?.__error || 'none'}`);
+  return { income, balance, cash, light: light.map((r) => [r.date, r.price]), adj: Array.isArray(adj) ? adj.map((r) => [r.date, r.adjClose]) : [] };
+}
+
 // Up to ~5 years of daily closes (light endpoint: date + close + volume).
 export async function fetchPriceHistory(symbol, apiKey, from) {
   const rows = await fmpGet('historical-price-eod/light', { symbol, from }, apiKey);

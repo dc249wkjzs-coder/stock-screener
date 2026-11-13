@@ -6,7 +6,7 @@
 export const GROUPS = [
   ['1 · The basics', ['stock', 'market-cap', 'revenue', 'eps', 'gaap-adjusted', 'ttm-ntm']],
   ['2 · Cheap or expensive?', ['pe', 'forward-pe', 'eps-growth', 'peg', 'pe-5y', 'value-signal', 'ev', 'ev-ebitda']],
-  ['3 · How profitable is it?', ['gross-margin', 'operating-margin', 'ebit', 'ebitda', 'ebitda-margin', 'margin-tiers']],
+  ['3 · How profitable is it?', ['revenue-growth', 'gross-margin', 'operating-margin', 'ebit', 'ebitda', 'ebitda-margin', 'margin-tiers', 'free-cash-flow', 'fcf-yield', 'dividend-yield']],
   ['4 · How much debt?', ['net-debt', 'net-debt-ebitda', 'interest-coverage']],
   ['5 · Is it a strong business?', ['moat', 'roic', 'durability', 'track-record', 'margin-premium', 'erosion', 'loss-years', 'piotroski', 'altman', 'magic-formula']],
   ['6 · What could it be worth?', ['fair-value', 'dcf', 'analyst-target', 'mandate-pe']],
@@ -14,7 +14,7 @@ export const GROUPS = [
   ['8 · When to buy: the chart', ['sma', 'sma-20', 'sma-50', 'sma-200', 'rsi', 'fibonacci', 'swing', 'buy-zone', 'confirmation', 'buy-ladder', 'off-high', 'falling-knife', 'pullback']],
   ['9 · How risky is it?', ['beta', 'crash-test', 'risk-level']],
   ['10 · Company filings', ['financing', 'shelf', 'prospectus', 'atm', 'convertible', 'new-company']],
-  ['11 · Using this site', ['presets']],
+  ['11 · Using this site', ['presets', 'backtest']],
 ]
 
 export const TERMS = {
@@ -189,6 +189,42 @@ export const TERMS = {
     example: '60%+ elite · 40–60% excellent · 25–40% solid · 15–25% normal · 10–15% below normal · under 10% thin.',
     rule: 'Thin margins leave little room for mistakes: a small rise in costs can wipe out the profit.',
     where: 'Shown next to the EBITDA margin on each stock page.',
+  },
+
+  'revenue-growth': {
+    term: 'Sales growth (revenue growth)',
+    simple: 'How much more the company sold this year than last year.',
+    like: 'A café that took $100,000 last year and $120,000 this year grew its sales 20%.',
+    example: 'Revenue $10B last year, $11.5B this year → 15% growth. The 3-year figure is the average yearly growth over three years.',
+    rule: 'Under 0% shrinking · 0–5% slow · 5–10% steady · 10–20% good · 20%+ fast.',
+    watch: 'A big jump can come from buying another company rather than winning new customers.',
+    where: 'The "Sales growth" box, the Results table and each stock page.',
+  },
+  'free-cash-flow': {
+    term: 'Free cash flow',
+    simple: 'The real cash left over after running the business and paying for new equipment: money the company could hand to its owners.',
+    like: 'Your salary minus rent, bills and fixing the car: what\'s actually left in your pocket.',
+    example: 'Cash from customers $500M − running costs $350M − new machines $50M = free cash flow $100M. Divided by sales of $1B, that\'s a 10% free cash flow margin.',
+    rule: 'Positive and growing is good. Negative means the company is burning cash and may need to borrow or sell shares.',
+    watch: 'Profit can look fine while free cash flow is negative, which is why it\'s worth checking both.',
+    where: 'Each stock page.',
+  },
+  'fcf-yield': {
+    term: 'Free cash flow yield',
+    simple: 'Free cash flow compared with the company\'s market value: how much real cash the business makes for every $100 the market says it\'s worth.',
+    like: 'A rental flat bought for $200,000 that leaves $10,000 a year after all costs: a 5% yield.',
+    example: 'Free cash flow $5B ÷ market cap $100B = 5%.',
+    rule: 'Negative = burning cash · 0–3% pricey or reinvesting heavily · 3–6% fair · 6%+ cheap (or the market expects trouble).',
+    where: 'The "Free cash flow" box, the Results table and each stock page.',
+  },
+  'dividend-yield': {
+    term: 'Dividend yield',
+    simple: 'The cash a company pays its owners each year, as a % of the share price.',
+    like: 'Interest on a savings account, except the company chooses how much to pay and can cut it.',
+    example: 'A $100 share that pays $3 a year in dividends yields 3%.',
+    rule: '0% = pays none (common for growth companies) · 1–3% normal · 3–6% high · over 6% check it\'s safe. If it pays out more than about 80% of its profit, there\'s little room to keep paying.',
+    watch: 'A very high yield often means the price has fallen because investors expect a cut.',
+    where: 'The "Dividend" box, the Results table and each stock page.',
   },
 
   // ---------- 4 · How much debt?
@@ -553,6 +589,15 @@ export const TERMS = {
     example: '"Quality compounder" = moat 7+, PEG up to 2, earnings growth 10%+, debt up to 3x, profitable, no recent share sales.',
     rule: 'Use the built-in ones to learn different styles; save your own once you know what you like.',
     where: 'Stock finder: set the boxes, type a name, press Save. Yours have a star and are saved to your account.',
+  },
+  backtest: {
+    term: 'Backtest (past performance check)',
+    simple: 'Replaying your screen in the past to see how its picks would have done since.',
+    like: 'Testing a recipe on last year\'s ingredients before cooking it for guests.',
+    example: 'Every 3 months for the last 5 years, the site rebuilds each company\'s numbers from the reports that were public at the time, picks the stocks that passed your boxes, and follows them for the next 3 months. If $10,000 grew to $18,000 while the S&P 500 grew to $16,000, the screen beat the market.',
+    rule: 'Beating both the S&P 500 and "all screener stocks" over 5 years is encouraging. Look at the worst drop too: could you have sat through it?',
+    watch: 'The past doesn\'t guarantee the future. Only companies that still exist today are included (ones that failed or were bought are missing), which flatters results; "all screener stocks" has the same flaw, so compare with it. Boxes based on analyst forecasts use actual past growth instead. Prices only: no dividends, trading costs or taxes.',
+    where: 'The "How has this screen done?" page, opened from Results.',
   },
 }
 

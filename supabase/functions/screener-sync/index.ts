@@ -3,10 +3,13 @@
 //   ?task=backfill      every 5 min until done: 2 years of daily closes for stocks that have none yet
 //   ?task=fundamentals  every 5 min: refresh the 20 stocks with the oldest fundamentals (weekly cycle)
 //   ?task=score         daily: technicals, moat score, Magic Formula rank, scorecard rows
+//   ?task=history       12 years of annual reports + weekly prices per stock (for the backtest), refreshed monthly
+//   ?task=replay        rebuilds past quarterly snapshots from that history (pass 1 per stock, pass 2 per date)
 // Auth: header x-job-token must equal the screener_job_token secret in Vault.
 // lib/ is a copy of the repo's shared/ folder (scripts/sync-function-lib.sh).
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { fmpGet, fetchUniverse, fetchFundamentals, fetchPriceHistory, classifyFiling, callCount } from './lib/fmp.js';
+import { fmpGet, fetchUniverse, fetchFundamentals, fetchPriceHistory, fetchHistory, classifyFiling, callCount, setRateLimit } from './lib/fmp.js';
+import { buildHistory, snapshotDates, stockSnapshots, finishDate } from './lib/replay.js';
 import { buildMetrics } from './lib/metrics.js';
 import { buildContext, moatScore, magicFormulaRanks } from './lib/crossSection.js';
 import { priceStats, fibonacci } from './lib/indicators.js';
@@ -152,16 +155,90 @@ async function taskScore() {
   return { scored: out.length, withPrices: Object.keys(tech).length };
 }
 
+const HISTORY_FROM = '2016-01-01';
+async function saveHistory(symbol: string, h: any) {
+  const { error } = await db.from('scr_history').upsert({ symbol, fy: h.fy, weeks: h.weeks, close: h.close, tr: h.tr, fetched_at: new Date().toISOString(), replayed_at: null, error: null });
+  if (error) throw error;
+}
+
+async function taskHistory(key: string, limit = 30) {
+  // The benchmark first; when it moves on, every stock's snapshot dates shift, so all get replayed again.
+  const { data: spy } = await db.from('scr_history').select('fetched_at').eq('symbol', 'SPY').maybeSingle();
+  let benchmark = false;
+  if (!spy || Date.parse(spy.fetched_at) < Date.now() - 30 * 864e5) {
+    await saveHistory('SPY', buildHistory(await fetchHistory('SPY', key, { statements: false, from: HISTORY_FROM })));
+    await db.from('scr_history').update({ replayed_at: null }).neq('symbol', 'SPY');
+    benchmark = true;
+  }
+  const { data: todo, error } = await db.rpc('scr_history_todo', { n: limit });
+  if (error) throw error;
+  let done = 0; const failed: string[] = [];
+  for (const symbol of (todo || []) as string[]) {
+    try { await saveHistory(symbol, buildHistory(await fetchHistory(symbol, key, { from: HISTORY_FROM }))); done++; }
+    catch (e) {
+      failed.push(`${symbol}: ${String(e).slice(0, 80)}`);
+      await db.from('scr_history').upsert({ symbol, fetched_at: new Date().toISOString(), error: String(e).slice(0, 200) });
+    }
+  }
+  return { benchmark, done, failed };
+}
+
+async function taskReplay(limit = 250) {
+  const { data: bench, error: be } = await db.from('scr_history').select('weeks,close,tr').eq('symbol', 'SPY').maybeSingle();
+  if (be) throw be;
+  if (!bench) return { waiting: 'benchmark history not loaded yet' };
+  const dates = snapshotDates(bench.weeks);
+  // Pass 1: stocks whose history is new or changed.
+  const { data: todo, error } = await db.from('scr_history').select('symbol,fy,weeks,close,tr').neq('symbol', 'SPY').is('replayed_at', null).not('weeks', 'is', null).limit(limit);
+  if (error) throw error;
+  if (todo?.length) {
+    const { data: now } = await db.from('scr_stocks').select('symbol,price,market_cap,sector,industry,fx:metrics->fxToUsd').in('symbol', todo.map((t) => t.symbol));
+    const nowBy = Object.fromEntries((now || []).map((n: any) => [n.symbol, n]));
+    let done = 0;
+    for (const h of todo) {
+      const n = nowBy[h.symbol];
+      const snap = n ? stockSnapshots(h, bench, dates, { price: Number(n.price), marketCap: Number(n.market_cap), fx: n.fx == null ? 1 : Number(n.fx) }) : {};
+      await db.from('scr_history').update({ snap, replayed_at: new Date().toISOString() }).eq('symbol', h.symbol);
+      done++;
+    }
+    return { pass: 1, done, dates: dates.length };
+  }
+  // Pass 2: rebuild every date once all stocks are replayed and something changed since the last build.
+  const { data: lastStock } = await db.from('scr_history').select('replayed_at').neq('symbol', 'SPY').not('replayed_at', 'is', null).order('replayed_at', { ascending: false }).limit(1).maybeSingle();
+  const { data: lastBuild } = await db.from('scr_replay').select('built_at').order('built_at', { ascending: false }).limit(1).maybeSingle();
+  if (lastBuild && lastStock && lastBuild.built_at > lastStock.replayed_at) return { pass: 2, upToDate: true };
+  let built = 0;
+  for (const d of dates) {
+    const rows: any[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error: e } = await db.rpc('scr_replay_rows', { d }).range(from, from + 999);
+      if (e) throw e;
+      rows.push(...data);
+      if (data.length < 1000) break;
+    }
+    if (!rows.length) continue;
+    const i = bench.weeks.indexOf(d);
+    const { error: ue } = await db.from('scr_replay').upsert({ asof: d, col: finishDate(rows), bench_tr: i >= 0 ? bench.tr[i] : null, built_at: new Date().toISOString() });
+    if (ue) throw ue;
+    built++;
+  }
+  await db.from('scr_replay').delete().not('asof', 'in', `(${dates.join(',')})`);
+  return { pass: 2, built };
+}
+
 async function run(task: string, params: URLSearchParams) {
   const { data: runRow } = await db.from('scr_runs').insert({ task }).select('id').single();
   const callsBefore = callCount;
   let ok = true, detail: any;
   try {
     const key = await secret('fmp_api_key');
+    if (params.get('rate')) setRateLimit(Number(params.get('rate')));
     if (task === 'universe') detail = await taskUniverse(key);
     else if (task === 'backfill') detail = await taskBackfill(key, Number(params.get('limit') || 150));
     else if (task === 'fundamentals') detail = await taskFundamentals(key, Number(params.get('limit') || 20));
     else if (task === 'score') detail = await taskScore();
+    else if (task === 'history') detail = await taskHistory(key, Number(params.get('limit') || 30));
+    else if (task === 'replay') detail = await taskReplay(Number(params.get('limit') || 250));
     else throw new Error(`unknown task ${task}`);
   } catch (e) { ok = false; detail = { error: String((e as any)?.message || e).slice(0, 500) }; }
   await db.from('scr_runs').update({ finished_at: new Date().toISOString(), ok, calls: callCount - callsBefore, detail }).eq('id', runRow?.id);

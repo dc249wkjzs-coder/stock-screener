@@ -1,0 +1,134 @@
+// Scores that compare each stock with the rest of the universe:
+// the calculated moat score (1-8) and the Magic Formula rank.
+
+const median = (xs) => {
+  const v = xs.filter((x) => x != null).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const m = Math.floor(v.length / 2);
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+};
+
+// Moat score v3 (calculated max 8). A moat leaves fingerprints in the numbers: high returns on capital that hold up
+// in bad years, prices and margins above the industry, and margins that don't erode.
+//   Return level        0–3   median return on operating capital: 8% → 0, 40%+ → 3 (straight line between)
+//   Durability          0–2   second-worst year of the last five (one shock allowed): 5% → 0, 20%+ → 2
+//   Consistency         0–1   years with returns above 15%: 5 of 5 = 1, 4 = 0.5
+//   Pricing power       0–2   gross margin vs its industry's median: at/above = 1, +10 pts = 1.5, +20 pts = 2
+//   Margin premium      0–2   operating margin vs industry median: ≥2× = 2, ≥1.3× = 1, above = 0.5
+//   Erosion            −2–0   gross margin down 5+ pts over the period = −1 (2.5+ = −0.5); operating margin
+//                             down 5+ pts = −0.5; latest return under 60% of the earlier median = −0.5
+//   Loss years                operating loss in the last 3 years = −1 each; 4–5 years ago = −0.5 each
+// Rounded to the nearest whole number, between 1 and 8. Calculated scores stop at 8 ("elite numbers"):
+// 9-10 mean a near-irreplaceable position (ASML-type choke point), which 5 years of figures can't show,
+// so only the owner sets them (owner's scale, 2026-11-10: ASML 9+, LIN ~8, Visa/Mastercard 8+).
+// Fewer than 4 years of financials, or a bank/insurer (no gross margin to read): no score, the owner sets one.
+// Calibrated against Morningstar's wide-moat list (VanEck MOAT holdings) and textbook no-moat industries:
+// see scripts/moat-eval.mjs.
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const half = (v) => Math.round(v * 2) / 2;
+export const MOAT_CALC_MAX = 8;
+const realGm = (x) => (x == null || x >= 0.995 ? null : x);
+const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
+export function moatScore(m, ctx) {
+  const years = Math.max(m.roicYears?.length || 0, m.incomeYears || 0);
+  if (years < 4) {
+    return { score: null, raw: null, parts: [], reason: `Only ${years} year${years === 1 ? '' : 's'} of financials. Too little history to calculate a moat; set your own score.` };
+  }
+  if (/Banks|Insurance|Mortgage|REIT/.test(m.industry || '') || !(m.grossMarginYears?.length >= 3)) {
+    return { score: null, raw: null, parts: [], reason: 'Banks, insurers and similar lenders don\'t report the margins this formula reads; set your own score.' };
+  }
+  const parts = [];
+  const add = (label, pts, max, detail) => parts.push({ label, pts: half(pts), max, detail });
+  const pct = (x) => (x == null ? 'n/a' : `${(x * 100).toFixed(1)}%`);
+  const yr = (x) => (x >= 1 ? '>100%' : `${Math.round(x * 100)}%`);
+  const roic = m.roicYears || [];
+
+  const med = m.roicMedian ?? m.roicAvg;
+  add('Return on operating capital', med == null ? 0 : clamp(((med - 0.08) / 0.32) * 3, 0, 3), 3,
+    med == null ? 'n/a' : `median ${med >= 1 ? '>100%' : pct(med)}; yearly ${roic.map(yr).join(', ')} (newest first)`);
+
+  const sorted = [...roic].sort((a, b) => a - b);
+  const second = sorted.length >= 3 ? sorted[1] : sorted[0] ?? null;
+  add('Durability', second == null ? 0 : clamp(((second - 0.05) / 0.15) * 2, 0, 2), 2,
+    second == null ? 'n/a' : `second-worst year ${yr(second)} (worst ${yr(sorted[0])}); one bad year is allowed`);
+  const above15 = roic.filter((x) => x > 0.15).length;
+  add('Consistency', above15 >= 5 ? 1 : above15 === 4 ? 0.5 : 0, 1, `${above15} of ${roic.length} years above 15%`);
+
+  // A gross margin of ~100% means the company reports no cost of revenue (Mastercard does this, Visa
+  // doesn't), not that it has perfect pricing. Those get the neutral industry-level score.
+  const gm = realGm(m.grossMargin ?? m.grossMarginYears?.[0]);
+  const indGm = ctx.industryMedianGrossMargin?.[m.industry];
+  const gap = gm != null && indGm != null ? gm - indGm : null;
+  if (gm == null && indGm != null) add('Pricing power', 1, 2, 'no cost of revenue reported, so gross margin can\'t be compared; scored as industry level');
+  else add('Pricing power', gap == null ? 0 : gap >= 0.20 ? 2 : gap >= 0.10 ? 1.5 : gap >= 0 ? 1 : 0, 2,
+    `gross margin ${pct(gm)} vs ${pct(indGm)} industry median`);
+
+  const indOm = ctx.industryMedianOpMargin?.[m.industry];
+  const om = m.operatingMargin;
+  const ratio = om > 0 && indOm > 0 ? om / indOm : null;
+  add('Margin premium over peers', om == null || indOm == null || om <= 0 ? 0 : ratio >= 2 ? 2 : ratio >= 1.3 ? 1 : om > indOm ? 0.5 : 0, 2,
+    `${pct(om)} operating margin vs ${pct(indOm)} median of ${ctx.industrySize?.[m.industry] ?? '?'} ${m.industry} stocks`);
+
+  // Erosion: compare the two oldest years with the two newest.
+  let erosion = 0; const why = [];
+  const g = m.grossMarginYears || [], o = m.opMarginYears || [];
+  if (g.length >= 4) {
+    const drop = mean(g.slice(-2)) - mean(g.slice(0, 2));
+    if (drop >= 0.05) { erosion -= 1; why.push(`gross margin down ${(drop * 100).toFixed(1)} pts`); }
+    else if (drop >= 0.025) { erosion -= 0.5; why.push(`gross margin down ${(drop * 100).toFixed(1)} pts`); }
+  }
+  if (o.length >= 4) {
+    const drop = mean(o.slice(-2)) - mean(o.slice(0, 2));
+    if (drop >= 0.05) { erosion -= 0.5; why.push(`operating margin down ${(drop * 100).toFixed(1)} pts`); }
+  }
+  if (roic.length >= 4) {
+    const older = [...roic.slice(1)].sort((a, b) => a - b)[Math.floor((roic.length - 2) / 2)];
+    if (older > 0.1 && roic[0] < 0.6 * older) { erosion -= 0.5; why.push(`latest return ${yr(roic[0])} vs earlier ${yr(older)}`); }
+  }
+  add('Erosion', Math.max(-2, erosion), 0, why.length ? why.join('; ') : 'no erosion in margins or returns');
+
+  const om5 = m.opMarginYears || [];
+  const recent = om5.slice(0, 3).filter((x) => x < 0).length, older = om5.slice(3).filter((x) => x < 0).length;
+  // Older stored data has only a loss-year count; use it until the stock is refreshed.
+  if (!om5.length && m.lossYears) add('Loss years', -m.lossYears, 0, `operating loss in ${m.lossYears} of the last ${m.incomeYears || 5} years`);
+  if (recent || older) add('Loss years', -(recent + older * 0.5), 0,
+    `operating loss in ${recent} of the last 3 years${older ? ` and ${older} of the 2 before` : ''}`);
+
+  const total = parts.reduce((s, p) => s + p.pts, 0);
+  // The numbers can show an elite business (8) but not whether it is irreplaceable; 9-10 are set by the owner.
+  return { score: clamp(Math.round(total), 1, MOAT_CALC_MAX), raw: total, parts, capped: Math.round(total) > MOAT_CALC_MAX };
+}
+
+// Context built once over the whole universe: industry medians and revenue shares.
+export function buildContext(all) {
+  const byInd = {};
+  for (const m of all) (byInd[m.industry || '—'] ||= []).push(m);
+  const median = (xs) => {
+    const v = xs.filter((x) => x != null).sort((a, b) => a - b);
+    if (!v.length) return null;
+    const k = Math.floor(v.length / 2);
+    return v.length % 2 ? v[k] : (v[k - 1] + v[k]) / 2;
+  };
+  const industryMedianOpMargin = {}, industryMedianGrossMargin = {}, industryShare = {}, industrySize = {};
+  for (const [ind, list] of Object.entries(byInd)) {
+    industryMedianOpMargin[ind] = median(list.map((m) => m.operatingMargin));
+    industryMedianGrossMargin[ind] = median(list.map((m) => realGm(m.grossMargin)));
+    const total = list.reduce((s, m) => s + (m.revenueTtm ?? m.revenue ?? 0), 0);
+    for (const m of list) if (total > 0 && (m.revenueTtm ?? m.revenue)) industryShare[m.symbol] = (m.revenueTtm ?? m.revenue) / total;
+    industrySize[ind] = list.length;
+  }
+  return { industryMedianOpMargin, industryMedianGrossMargin, industryShare, industrySize };
+}
+
+// Greenblatt Magic Formula: rank by earnings yield (EBIT/EV) + rank by return on capital,
+// lower combined = better. Financials and utilities are excluded, as in the original method.
+export function magicFormulaRanks(all) {
+  const ok = all.filter((m) => m.earningsYieldEbit != null && m.roicTtm != null && !/Financial|Utilities/.test(m.sector || ''));
+  const eyRank = new Map([...ok].sort((a, b) => b.earningsYieldEbit - a.earningsYieldEbit).map((m, i) => [m.symbol, i + 1]));
+  const rocRank = new Map([...ok].sort((a, b) => b.roicTtm - a.roicTtm).map((m, i) => [m.symbol, i + 1]));
+  const combined = ok.map((m) => ({ s: m.symbol, v: eyRank.get(m.symbol) + rocRank.get(m.symbol) })).sort((a, b) => a.v - b.v);
+  const out = {};
+  combined.forEach((c, i) => { out[c.s] = { rank: i + 1, of: combined.length }; });
+  return out;
+}

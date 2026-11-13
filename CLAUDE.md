@@ -66,6 +66,17 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - Foreign companies report EPS/estimates in home currency per ordinary share; `metrics.js` converts with
   fx = price ÷ (FMP trailing P/E × reported EPS) (covers currency and ADR ratio). FMP DCF is dropped for them.
   Share classes: FMP lists one (GOOG, not GOOGL); `src/lib/data.jsx` ALIASES maps positions to it.
+- **Backtest** (`/backtest?…`, button on Results): `shared/replay.js` + `shared/backtest.js`. Jobs: `history`
+  (odd minutes, 30 stocks × 5 calls: 12 annual income/balance/cash-flow statements + weekly split-adjusted and
+  dividend-adjusted closes since 2016, into `scr_history`; SPY = benchmark; refreshed every 30 days) and `replay`
+  (every 5 min: pass 1 builds each stock's point-in-time snapshot at 21 quarterly dates using only reports with
+  filingDate ≤ date; pass 2 builds per-date column-wise records with that date's industry medians + moat into
+  `scr_replay`). Edge Function `backtest` (verify_jwt + user check) runs a screen: equal weight, quarterly,
+  dividends reinvested, vs SPY and all screener stocks. Approximations listed in `replayable()`; survivorship bias
+  (only today's listed companies). Deployed `backtest/lib` uses slim stubs for metrics/crossSection; deploying the
+  full copies from `scripts/sync-function-lib.sh` also works.
+- New measures (2026-11-13): sales growth (1y, 3y), free cash flow yield/margin, dividend yield/payout (from TTM
+  ratios; no extra FMP calls); boxes in the Stock finder and columns in Results.
 - `tests/` – `npm test` (RSI, Fibonacci, calibration rules, prospectus classifier, forward EPS).
 
 ## Definitions (also shown on the Mandate rules page)

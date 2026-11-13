@@ -96,8 +96,13 @@ export default function Stock() {
             </div>
           )}
         </Panel>
-        <Panel title="EBITDA lens and debt">
+        <Panel title="Profit, cash and debt">
           <Rows rows={[
+            ['Sales growth, last year', fp(s.revenueGrowth, 1), 'revenue-growth'],
+            ['Sales growth, 3 years (a year)', fp(s.revenueGrowth3y, 1), 'revenue-growth'],
+            ['Free cash flow margin (TTM)', fp(s.fcfMargin, 1), 'free-cash-flow'],
+            ['Free cash flow yield (TTM)', fp(s.fcfYield, 1), 'fcf-yield'],
+            ['Dividend yield', s.dividendYield ? `${fp(s.dividendYield, 2)}${s.payoutRatio > 0 ? ` · pays out ${fp(s.payoutRatio, 0)} of profit` : ''}` : 'No dividend', 'dividend-yield'],
             ['EBITDA margin (TTM)', `${fp(s.ebitdaMargin, 1)} · ${marginTier(s.ebitdaMargin)}`, 'ebitda-margin'],
             ['EV / EBITDA', fx(s.evToEbitda), 'ev-ebitda'],
             ['EBITDA growth, last fiscal year', fp(s.ebitdaGrowth, 1), 'ebitda'],

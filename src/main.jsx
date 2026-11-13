@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import Build from './pages/Build'
 import Results from './pages/Results'
 import Lookup from './pages/Lookup'
+import Backtest from './pages/Backtest'
 import Stock from './pages/Stock'
 import Status from './pages/Status'
 import Learn from './pages/Learn'
@@ -43,6 +44,7 @@ function App() {
             <Route index element={<Build />} />
             <Route path="results" element={<Results />} />
             <Route path="lookup" element={<Lookup />} />
+            <Route path="backtest" element={<Backtest />} />
             <Route path="stock/:symbol" element={<Stock />} />
             <Route path="status" element={<Status />} />
             <Route path="learn" element={<Learn />} />

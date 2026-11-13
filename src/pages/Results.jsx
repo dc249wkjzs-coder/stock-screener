@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, SlidersHorizontal, History } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { Panel, useSort, Empty } from '@/components/ui'
 import { SetupChip, fx, fp, fn, usd, cap } from '@/components/pillarUi'
@@ -32,7 +32,10 @@ export default function Results() {
           <h1 className="text-2xl font-semibold tracking-tight">{rows.length} matching stocks</h1>
           <div className="text-[13px] text-muted mt-1">{summary.length ? `Screened on: ${summary.map((l) => (l === 'Industry' ? themes.join(', ') : l)).join(' · ')}` : 'No boxes set: every stock is shown.'}</div>
         </div>
-        <button className="btn" onClick={() => navigate('/')}><SlidersHorizontal size={14} /> Change the screen</button>
+        <div className="flex flex-wrap gap-2">
+          <Link className="btn btn-primary" to={`/backtest?${toParams(c)}`}><History size={14} /> How has this screen done?</Link>
+          <button className="btn" onClick={() => navigate('/')}><SlidersHorizontal size={14} /> Change the screen</button>
+        </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_340px] items-start">
@@ -48,6 +51,9 @@ export default function Results() {
                   {th('peg', <>PEG<Info id="peg" /></>)}
                   {th('epsGrowth', <>EPS gr.<Info id="eps-growth" /></>)}
                   {th('ebitdaMargin', <>EBITDA %<Info id="ebitda-margin" /></>)}
+                  {th('revenueGrowth', <>Sales gr.<Info id="revenue-growth" /></>)}
+                  {th('fcfYield', <>FCF yld<Info id="fcf-yield" /></>)}
+                  {th('dividendYield', <>Div.<Info id="dividend-yield" /></>)}
                   {th('netDebtToEbitda', <>Debt<Info id="net-debt-ebitda" /></>)}
                   {th('beta', <>Beta<Info id="beta" /></>)}
                   {th('offHigh', <>Off high<Info id="off-high" /></>)}
@@ -69,6 +75,9 @@ export default function Results() {
                       <td className="num">{fx(s.peg, 2)}</td>
                       <td className="num">{fp(s.epsGrowth)}</td>
                       <td className="num">{fp(s.ebitdaMargin)}</td>
+                      <td className="num">{fp(s.revenueGrowth)}</td>
+                      <td className={`num ${s.fcfYield < 0 ? 'text-loss' : ''}`}>{fp(s.fcfYield, 1)}</td>
+                      <td className="num">{s.dividendYield ? fp(s.dividendYield, 1) : '—'}</td>
                       <td className="num">{s.netDebtToEbitda != null && s.netDebtToEbitda < 0 ? <span className="text-gain">net cash</span> : fx(s.netDebtToEbitda)}</td>
                       <td className="num">{fn(s.beta, 2)}</td>
                       <td className="num">{fp(s.offHigh)}</td>

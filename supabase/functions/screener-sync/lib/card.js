@@ -26,6 +26,8 @@ export function makeCard(m, tech, moat, magic) {
     fibSupport: tech?.fib?.nextSupport ?? null, fibRetraced: tech?.fib?.retraced ?? null,
     dcf: m.dcf, dcfUpside: tech?.lastClose && m.dcf != null ? m.dcf / tech.lastClose - 1 : m.dcfUpside,
     targetConsensus: m.targetConsensus ?? null, targetHigh: m.targetHigh ?? null, targetLow: m.targetLow ?? null,
+    revenueGrowth: m.revenueGrowth ?? null, revenueGrowth3y: m.revenueGrowth3y ?? null, fcfYield: m.fcfYield ?? null, fcfMargin: m.fcfMargin ?? null,
+    dividendYield: m.dividendYield ?? null, payoutRatio: m.payoutRatio ?? null,
     piotroski: m.piotroski, altmanZ: m.altmanZ, magicRank: magic?.rank ?? null, magicOf: magic?.of ?? null,
   };
 }

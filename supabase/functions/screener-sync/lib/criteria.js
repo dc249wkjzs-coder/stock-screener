@@ -24,7 +24,7 @@ export const THEMES = [
 
 export const BLANK = {
   themes: [], moatMin: null, debtMax: null, peMin: null, peMax: null, pegMax: null, growthMin: null,
-  marginMin: null, profitable: false, noDilution: false, capMin: null, betaMax: null, aiRiskMax: null, entry: 'any',
+  marginMin: null, revGrowthMin: null, fcfYieldMin: null, dividendMin: null, profitable: false, noDilution: false, capMin: null, betaMax: null, aiRiskMax: null, entry: 'any',
 };
 
 export const PRESETS = [
@@ -52,6 +52,9 @@ export const OPTIONS = {
   capMin: [null, 2e9, 10e9, 50e9, 200e9],
   betaMax: [null, 2, 1.5, 1.2, 1, 0.8],
   aiRiskMax: [null, 5, 3],
+  revGrowthMin: [null, 0, 0.05, 0.10, 0.20],
+  fcfYieldMin: [null, 0, 0.03, 0.05],
+  dividendMin: [null, 0.0001, 0.01, 0.02, 0.03, 0.04],
   entry: ['any', 'zone', 'confirmed', 'off20'],
 };
 
@@ -70,6 +73,9 @@ export const optionLabel = (key, v) => {
     case 'capMin': return `${usdB(v)}+`;
     case 'betaMax': return `Up to ${v}`;
     case 'aiRiskMax': return `Up to ${v}`;
+    case 'revGrowthMin': return `${pct(v)}+`;
+    case 'fcfYieldMin': return v === 0 ? 'Positive' : `${pct(v)}+ yield`;
+    case 'dividendMin': return v < 0.001 ? 'Pays one' : `${pct(v)}+ yield`;
     case 'entry': return { zone: 'Near a buy level', confirmed: 'Bounce confirmed', off20: '20%+ below its high' }[v];
     default: return String(v);
   }
@@ -105,6 +111,9 @@ export function checks(s, c) {
   }
   if (C.capMin != null) add('capMin', 'Company size', s.marketCap >= C.capMin, s.marketCap ? `${usdB(Math.round(s.marketCap / 1e8) * 1e8)} market cap` : 'no data');
   if (C.betaMax != null) add('betaMax', 'Volatility (beta)', s.beta != null && s.beta <= C.betaMax, s.beta == null ? 'no data' : s.beta.toFixed(2));
+  if (C.revGrowthMin != null) add('revGrowthMin', 'Sales growth', s.revenueGrowth != null && s.revenueGrowth >= C.revGrowthMin, s.revenueGrowth == null ? 'no data' : `${pct(s.revenueGrowth)} last year`);
+  if (C.fcfYieldMin != null) add('fcfYieldMin', 'Free cash flow', s.fcfYield != null && (C.fcfYieldMin === 0 ? s.fcfYield > 0 : s.fcfYield >= C.fcfYieldMin), s.fcfYield == null ? 'no data' : `free cash flow yield ${(s.fcfYield * 100).toFixed(1)}%`);
+  if (C.dividendMin != null) add('dividendMin', 'Dividend', s.dividendYield != null && s.dividendYield >= C.dividendMin, !s.dividendYield ? 'no dividend' : `${(s.dividendYield * 100).toFixed(1)}% yield`);
   if (C.aiRiskMax != null) add('aiRiskMax', 'AI risk', s.aiRisk != null && s.aiRisk <= C.aiRiskMax, s.aiRisk == null ? 'not rated yet' : `${s.aiRisk}/10`);
   if (C.entry !== 'any') {
     const st = s.setup?.status;
@@ -157,7 +166,7 @@ export function riskProfile(stocks) {
 }
 
 // ---- URL <-> criteria (so a screen can be bookmarked).
-const NUM = ['moatMin', 'debtMax', 'peMin', 'peMax', 'pegMax', 'growthMin', 'marginMin', 'capMin', 'betaMax', 'aiRiskMax'];
+const NUM = ['moatMin', 'debtMax', 'peMin', 'peMax', 'pegMax', 'growthMin', 'marginMin', 'revGrowthMin', 'fcfYieldMin', 'dividendMin', 'capMin', 'betaMax', 'aiRiskMax'];
 export function toParams(c) {
   const p = new URLSearchParams();
   const C = { ...BLANK, ...c };

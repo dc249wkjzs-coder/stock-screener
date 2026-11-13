@@ -34,6 +34,21 @@ export function forwardEps(estimates, today = new Date()) {
   };
 }
 
+// Return on operating capital for one fiscal year (income row + balance row, FMP field names).
+// After-tax EBIT ÷ (total assets − cash & investments − goodwill & intangibles − non-debt current liabilities),
+// with the capital floored at 10% of tangible operating assets; clamped to ±100%.
+export function roicOf(inc, b) {
+  if (!inc || !b || inc.ebit == null) return null;
+  const taxRate = inc.incomeBeforeTax > 0 ? Math.min(0.35, Math.max(0, inc.incomeTaxExpense / inc.incomeBeforeTax)) : 0.21;
+  const nopat = inc.ebit * (1 - taxRate);
+  const cash = (b.cashAndShortTermInvestments ?? b.cashAndCashEquivalents ?? 0) + (b.longTermInvestments || 0);
+  const tangibleOpAssets = (b.totalAssets || 0) - cash - (b.goodwillAndIntangibleAssets || 0);
+  const freeCredit = Math.max(0, (b.totalCurrentLiabilities || 0) - (b.shortTermDebt || 0));
+  const capital = Math.max(tangibleOpAssets - freeCredit, tangibleOpAssets * 0.10);
+  if (!(capital > 0)) return null;
+  return Math.max(-1, Math.min(1, nopat / capital));
+}
+
 export function buildMetrics(raw, uni, today = new Date()) {
   const profile = one(raw.profile);
   const income = arr(raw.income).slice().sort((a, b) => (a.date < b.date ? 1 : -1)); // newest first
@@ -80,6 +95,15 @@ export function buildMetrics(raw, uni, today = new Date()) {
   const ebitdaMargin = num(rT.ebitdaMarginTTM);
   const evToEbitda = num(kmT.evToEBITDATTM);
   const ebitdaGrowth = lastFy && prevFy && prevFy.ebitda > 0 ? lastFy.ebitda / prevFy.ebitda - 1 : null;
+
+  // --- Sales growth, free cash flow, dividends (all ratios, so the reporting currency doesn't matter)
+  const revenueGrowth = lastFy && prevFy && prevFy.revenue > 0 && lastFy.revenue > 0 ? lastFy.revenue / prevFy.revenue - 1 : null;
+  const rev3 = income[3];
+  const revenueGrowth3y = lastFy && rev3?.revenue > 0 && lastFy.revenue > 0 ? (lastFy.revenue / rev3.revenue) ** (1 / 3) - 1 : null;
+  const fcfYield = num(kmT.freeCashFlowYieldTTM);
+  const fcfMargin = num(rT.freeCashFlowPerShareTTM) != null && num(rT.revenuePerShareTTM) > 0 ? rT.freeCashFlowPerShareTTM / rT.revenuePerShareTTM : null;
+  const dividendYield = num(rT.dividendYieldTTM);
+  const payoutRatio = num(rT.dividendPayoutRatioTTM);
   const operatingMargin = num(rT.operatingProfitMarginTTM);
   const grossMargin = num(rT.grossProfitMarginTTM);
 
@@ -94,18 +118,7 @@ export function buildMetrics(raw, uni, today = new Date()) {
   // and acquisitive companies are measured on the business itself. A floor of 10% of tangible
   // operating assets stops tiny denominators from producing meaningless percentages.
   const balance = arr(raw.balance);
-  const roicYears = income.slice(0, 5).map((inc) => {
-    const b = balance.find((x) => x.date === inc.date);
-    if (!b || inc.ebit == null) return null;
-    const taxRate = inc.incomeBeforeTax > 0 ? Math.min(0.35, Math.max(0, inc.incomeTaxExpense / inc.incomeBeforeTax)) : 0.21;
-    const nopat = inc.ebit * (1 - taxRate);
-    const cash = (b.cashAndShortTermInvestments ?? b.cashAndCashEquivalents ?? 0) + (b.longTermInvestments || 0);
-    const tangibleOpAssets = (b.totalAssets || 0) - cash - (b.goodwillAndIntangibleAssets || 0);
-    const freeCredit = Math.max(0, (b.totalCurrentLiabilities || 0) - (b.shortTermDebt || 0));
-    const capital = Math.max(tangibleOpAssets - freeCredit, tangibleOpAssets * 0.10);
-    if (!(capital > 0)) return null;
-    return Math.max(-1, Math.min(1, nopat / capital));
-  }).filter((x) => x != null);
+  const roicYears = income.slice(0, 5).map((inc) => roicOf(inc, balance.find((x) => x.date === inc.date))).filter((x) => x != null);
   const roicReportedYears = km.map((r) => num(r.returnOnInvestedCapital)).filter((x) => x != null);
   const grossMarginYears = income.slice(0, 5).map((r) => (r.revenue > 0 ? r.grossProfit / r.revenue : null)).filter((x) => x != null);
   const opMarginYears = income.slice(0, 5).map((r) => (r.revenue > 0 ? (r.operatingIncome ?? r.ebit) / r.revenue : null)).filter((x) => x != null);
@@ -152,6 +165,7 @@ export function buildMetrics(raw, uni, today = new Date()) {
     epsTtm, gaapLossTtm, gaapEpsGrowthLastFy, lastFyDate: lastFy?.date || null,
     // ebitda
     ebitdaMargin, evToEbitda, ebitdaGrowth, operatingMargin, grossMargin,
+    revenueGrowth, revenueGrowth3y, fcfYield, fcfMargin, dividendYield, payoutRatio,
     // debt
     netDebtToEbitda, interestCoverage,
     // moat inputs

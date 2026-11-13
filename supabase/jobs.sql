@@ -19,7 +19,7 @@ revoke all on function public.scr_run(text, text) from public, anon, authenticat
 -- Times are UTC. 22:15 UTC = 5:15pm New York in winter (6:15pm in summer), after the close.
 select cron.schedule('screener-universe',     '15 22 * * 1-5',  $$select public.scr_run('universe')$$);
 -- 25 stocks every 2 minutes (300 FMP calls); each stock refreshes once its data is 7+ days old.
-select cron.schedule('screener-fundamentals', '*/2 * * * *',    $$select public.scr_run('fundamentals', '&limit=25')$$);
+select cron.schedule('screener-fundamentals', '*/2 * * * *',    $$select public.scr_run('fundamentals', '&limit=25&rate=150')$$);
 -- Price history for new listings (idle once everything is loaded).
 select cron.schedule('screener-backfill',     '1-59/3 * * * *', $$select public.scr_run('backfill')$$);
 -- Rebuild scores, technicals and scorecard rows (no FMP calls).
@@ -27,3 +27,6 @@ select cron.schedule('screener-score',        '50 * * * *',     $$select public.
 
 -- Turn the SEC filing reader on (SEC requires a name + real contact email):
 -- select vault.create_secret('LifeLedgerScreener you@example.com', 'sec_user_agent');
+-- Backtest data: 12 years of annual reports + weekly prices per stock (refreshed monthly), then the replay.
+select cron.schedule('screener-history', '1-59/2 * * * *', $$select public.scr_run('history', '&limit=30&rate=120')$$);
+select cron.schedule('screener-replay',  '*/5 * * * *',    $$select public.scr_run('replay', '&limit=250')$$);
