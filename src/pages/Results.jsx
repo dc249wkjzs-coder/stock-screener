@@ -7,6 +7,7 @@ import { SetupChip, fx, fp, fn, usd, cap } from '@/components/pillarUi'
 import { SETUP_ORDER } from '@shared/valuation.js'
 import { BLANK, THEMES, matches, checks, riskProfile, fromParams, toParams } from '@shared/criteria.js'
 import RiskMeter from '@/components/RiskMeter'
+import BestMatches from '@/components/BestMatches'
 import { Info } from '@/components/Term'
 
 export default function Results() {
@@ -37,6 +38,8 @@ export default function Results() {
           <button className="btn" onClick={() => navigate('/')}><SlidersHorizontal size={14} /> Change the screen</button>
         </div>
       </div>
+
+      <BestMatches stocks={rows} />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_340px] items-start">
         <Panel pad={false} className="min-w-0 order-2 lg:order-1">

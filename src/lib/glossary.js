@@ -14,7 +14,7 @@ export const GROUPS = [
   ['8 · When to buy: the chart', ['sma', 'sma-20', 'sma-50', 'sma-200', 'rsi', 'fibonacci', 'swing', 'buy-zone', 'confirmation', 'buy-ladder', 'off-high', 'falling-knife', 'pullback']],
   ['9 · How risky is it?', ['beta', 'crash-test', 'risk-level']],
   ['10 · Company filings', ['financing', 'shelf', 'prospectus', 'atm', 'convertible', 'new-company']],
-  ['11 · Using this site', ['presets', 'backtest']],
+  ['11 · Using this site', ['presets', 'best-matches', 'backtest']],
 ]
 
 export const TERMS = {
@@ -598,6 +598,15 @@ export const TERMS = {
     example: '"Quality compounder" = moat 7+, PEG up to 2, earnings growth 10%+, debt up to 3x, profitable, no recent share sales.',
     rule: 'Use the built-in ones to learn different styles; save your own once you know what you like.',
     where: 'Stock finder: set the boxes, type a name, press Save. Yours have a star and are saved to your account.',
+  },
+  'best-matches': {
+    term: 'Best matches',
+    simple: 'A short list at the top of Results: the stocks that came out on top of your screen in a few categories (all-round, price to buy now, value, quality, growth, dividend).',
+    like: 'A class ranking. Everyone in the class passed the exam (your screen); this shows who scored highest in maths, in reading, and overall.',
+    example: 'Your screen finds 40 stocks. One has a PEG of 1.1, the lowest of the 40, so its chip reads "PEG 1.10x · top 3%". The all-round score adds quality 30%, growth 25%, value 25%, balance sheet 10% and entry timing 10%, each scored 0-100 within the 40.',
+    rule: 'Every pick shows the numbers that put it there. Green chips are figures in the top 20% of the group.',
+    watch: 'It ranks stocks against each other, not against an absolute standard: in a weak group the "best" can still be mediocre. And it is a shortlist to research, not a buy signal.',
+    where: 'Results page, above the list.',
   },
   backtest: {
     term: 'Backtest (past performance check)',
