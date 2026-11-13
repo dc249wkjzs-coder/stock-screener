@@ -80,7 +80,11 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - Foreign companies report EPS/estimates in home currency per ordinary share; `metrics.js` converts with
   fx = price ÷ (FMP trailing P/E × reported EPS) (covers currency and ADR ratio). FMP DCF is dropped for them.
   Share classes: FMP lists one (GOOG, not GOOGL); `src/lib/data.jsx` ALIASES maps positions to it.
-- **Backtest** (`/backtest?…`, button on Results): `shared/replay.js` + `shared/backtest.js`. Jobs: `history`
+- **What if I bought these 5 years ago?** (button on My portfolio, `src/components/PastPerformance.jsx`, `shared/pastPerformance.js`):
+  buy-and-hold of the cart's stocks at their shares from the first week 5 years back, dividends reinvested, never rebalanced,
+  vs SPY; stocks listed later hold cash until their first week. Weekly prices come from `scr_history` via RPC
+  `scr_past_prices(symbols)` (security definer, signed-in only). Shows a hindsight caveat.
+- **Rules backtest** (`/backtest?…`; no longer linked from Results since 2026-11-13, page and function still exist): `shared/replay.js` + `shared/backtest.js`. Jobs: `history`
   (odd minutes, 30 stocks × 5 calls: 12 annual income/balance/cash-flow statements + weekly split-adjusted and
   dividend-adjusted closes since 2016, into `scr_history`; SPY = benchmark; refreshed every 30 days) and `replay`
   (every 5 min: pass 1 builds each stock's point-in-time snapshot at 21 quarterly dates using only reports with

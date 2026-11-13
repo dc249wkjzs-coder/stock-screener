@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ShoppingCart, Minus, Plus, X, ArrowRight } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { usd } from '@/components/pillarUi'
+import PortfolioButton from '@/components/PortfolioButton'
 import { resolveWeights } from '@shared/portfolio.js'
 
 // The stock cart in the top-right corner: shows how many stocks are chosen, lets you add and remove them,
@@ -62,19 +63,13 @@ export default function StockCart({ dark = false }) {
               className="input py-1.5!" />
             {found.length > 0 && (
               <div className="mt-1.5 grid">
-                {found.map((s) => {
-                  const inside = d.inPortfolio(s.symbol)
-                  return (
-                    <div key={s.symbol} className="flex items-center gap-2 py-1.5 text-[13px]">
-                      <span className="font-semibold w-14 shrink-0">{s.symbol}</span>
-                      <span className="flex-1 truncate text-muted">{s.name}</span>
-                      <button className={`w-6 h-6 grid place-items-center rounded border ${inside ? 'border-accent bg-accent text-accent-fg' : 'border-line hover:border-accent hover:text-accent'}`}
-                        title={inside ? `Remove ${s.symbol}` : `Add ${s.symbol}`} onClick={() => (inside ? d.removeFromPortfolio(s.symbol) : d.addToPortfolio(s.symbol))}>
-                        {inside ? <Minus size={12} /> : <Plus size={12} />}
-                      </button>
-                    </div>
-                  )
-                })}
+                {found.map((s) => (
+                  <div key={s.symbol} className="flex items-center gap-2 py-1.5 text-[13px]">
+                    <span className="font-semibold w-14 shrink-0">{s.symbol}</span>
+                    <span className="flex-1 truncate text-muted">{s.name}</span>
+                    <PortfolioButton symbol={s.symbol} />
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -94,7 +89,7 @@ export default function StockCart({ dark = false }) {
                     <div className="num text-[13px]">{usd(s?.price)}</div>
                     <div className="num text-[11.5px] text-muted">{((weights[p.symbol] || 0) * 100).toFixed(0)}% share</div>
                   </div>
-                  <button className="w-6 h-6 grid place-items-center rounded border border-line text-muted hover:border-loss hover:text-loss shrink-0" title={`Remove ${p.symbol}`} onClick={() => d.removeFromPortfolio(p.symbol)}><Minus size={12} /></button>
+                  <button className="inline-flex items-center gap-1 rounded-full border border-loss/40 bg-loss-soft px-2.5 py-1 text-[12px] font-semibold text-loss hover:bg-loss hover:text-white shrink-0" title={`Remove ${p.symbol}`} onClick={() => d.removeFromPortfolio(p.symbol)}><Minus size={12} strokeWidth={2.6} /> Remove</button>
                 </div>
               )
             })}

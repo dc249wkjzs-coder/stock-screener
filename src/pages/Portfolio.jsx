@@ -1,12 +1,13 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Minus, X, ThumbsUp, AlertTriangle, Search } from 'lucide-react'
+import { Plus, Minus, X, ThumbsUp, AlertTriangle, Search, History } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { Panel, Empty } from '@/components/ui'
 import { SetupChip, fx, fp, fn, usd, cap } from '@/components/pillarUi'
 import { scorePortfolio, PORTFOLIO_LABELS, PORTFOLIO_WEIGHTS } from '@shared/portfolio.js'
 import RiskMeter from '@/components/RiskMeter'
 import { Info } from '@/components/Term'
+import PastPerformance from '@/components/PastPerformance'
 
 const GRADES = [[80, 'Excellent'], [65, 'Strong'], [50, 'Average'], [35, 'Below average'], [0, 'Weak']]
 const grade = (x) => GRADES.find(([min]) => x >= min)[1]
@@ -37,6 +38,9 @@ function Lines({ title, icon: Icon, tone, items, empty }) {
 
 export default function Portfolio() {
   const d = useData()
+  const [past, setPast] = useState(false)
+  const pastRef = useRef(null)
+  useEffect(() => { if (past) pastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, [past])
   const navigate = useNavigate()
   const result = useMemo(() => scorePortfolio(d.portfolio, d.stocks), [d.portfolio, d.stocks])
   const rows = d.portfolio.map((p) => ({ ...p, s: d.bySymbol[p.symbol] })).filter((r) => r.s)
@@ -75,6 +79,7 @@ export default function Portfolio() {
         <div className="flex flex-wrap gap-2">
           {anySet && <button className="btn" onClick={() => d.setWeights(Object.fromEntries(d.portfolio.map((p) => [p.symbol, null])))}>Reset to equal weights</button>}
           <button className="btn" onClick={() => { if (window.confirm('Remove every stock from My portfolio?')) d.clearPortfolio() }}>Clear all</button>
+          <button className="btn btn-primary" onClick={() => (past ? pastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : setPast(true))}><History size={14} /> What if I bought these 5 years ago?</button>
         </div>
       </div>
 
@@ -119,6 +124,12 @@ export default function Portfolio() {
       )}
 
 
+      {past && result && (
+        <div ref={pastRef} className="scroll-mt-20">
+          <PastPerformance holdings={rows.map((x) => ({ symbol: x.symbol, w: result.weights[x.symbol] }))} />
+        </div>
+      )}
+
       <div className="grid gap-5">
         <Panel title="Stocks" subtitle="Use − / + to change a stock's share, or type a %. Stocks you haven't set share what's left equally." pad={false}>
           <div className="overflow-x-auto">
@@ -133,11 +144,11 @@ export default function Portfolio() {
                     <td className="max-w-[200px]"><Link to={`/stock/${symbol}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-accent hover:underline">{symbol}</Link><div className="text-[12px] text-muted truncate">{s.name}</div></td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className="inline-flex items-center gap-1">
-                        <button className="w-6 h-6 grid place-items-center rounded border border-line hover:border-accent" onClick={() => nudge(symbol, -1)} title="1 point less"><Minus size={12} /></button>
+                        <button className="w-7 h-7 grid place-items-center rounded-full bg-accent-soft text-accent hover:bg-accent hover:text-accent-fg" onClick={() => nudge(symbol, -1)} title="1 point less"><Minus size={14} strokeWidth={2.6} /></button>
                         <input className="w-12 text-center num rounded border border-line bg-surface py-0.5 text-[13px]" key={`${symbol}-${weight}-${Math.round((w[symbol] || 0) * 1000)}`}
                           defaultValue={(w[symbol] * 100).toFixed(weight == null ? 1 : 0)} onBlur={(e) => setExact(symbol, e.target.value)} onKeyDown={(e) => e.key === 'Enter' && e.target.blur()} />
                         <span className="text-[12px] text-muted">%</span>
-                        <button className="w-6 h-6 grid place-items-center rounded border border-line hover:border-accent" onClick={() => nudge(symbol, 1)} title="1 point more"><Plus size={12} /></button>
+                        <button className="w-7 h-7 grid place-items-center rounded-full bg-accent-soft text-accent hover:bg-accent hover:text-accent-fg" onClick={() => nudge(symbol, 1)} title="1 point more"><Plus size={14} strokeWidth={2.6} /></button>
                       </div>
                       {weight == null && <div className="text-[10.5px] text-faint">equal share</div>}
                     </td>
@@ -149,7 +160,7 @@ export default function Portfolio() {
                     <td className="num">{fn(s.beta, 2)}</td>
                     <td className="text-left!"><SetupChip setup={s.setup} /></td>
                     <td className="num">{usd(s.price)}<div className="text-[11px] text-muted">{cap(s.marketCap)}</div></td>
-                    <td onClick={(e) => e.stopPropagation()}><button className="w-6 h-6 grid place-items-center rounded text-muted hover:text-loss hover:bg-loss-soft" title={`Remove ${symbol}`} onClick={() => d.removeFromPortfolio(symbol)}><X size={14} /></button></td>
+                    <td onClick={(e) => e.stopPropagation()}><button className="inline-flex items-center gap-1 rounded-full border border-loss/40 bg-loss-soft px-2.5 py-1 text-[12px] font-semibold text-loss hover:bg-loss hover:text-white" title={`Remove ${symbol}`} onClick={() => d.removeFromPortfolio(symbol)}><X size={12} strokeWidth={2.6} /> Remove</button></td>
                   </tr>
                 ))}
               </tbody>

@@ -1,22 +1,28 @@
 import { Plus, Minus, Check } from 'lucide-react'
 import { useData } from '@/lib/data'
 
-// + adds a stock to the stock cart (My portfolio); once it's in, the button shows a tick and − takes it out again.
+// Adds a stock to the stock cart (My portfolio) or takes it out again.
+// Not in the cart: blue-tinted "+ Add". In the cart: solid blue "✓ Added", which turns into a red "− Remove" on hover.
 export default function PortfolioButton({ symbol, full = false }) {
   const d = useData()
   const inside = d.inPortfolio(symbol)
   const click = (e) => { e.stopPropagation(); e.preventDefault(); inside ? d.removeFromPortfolio(symbol) : d.addToPortfolio(symbol) }
-  if (full) {
-    return (
-      <button className={`btn ${inside ? '' : 'btn-primary'}`} onClick={click}>
-        {inside ? <><Check size={14} /> In your cart · <Minus size={13} /> Remove</> : <><Plus size={14} /> Add to stock cart</>}
-      </button>
-    )
-  }
+  const title = inside ? `Remove ${symbol} from the stock cart` : `Add ${symbol} to the stock cart`
+  const base = 'group inline-flex items-center justify-center gap-1 rounded-full font-semibold whitespace-nowrap transition-colors shrink-0 border'
+  const look = inside
+    ? 'bg-accent border-accent text-accent-fg hover:bg-loss hover:border-loss'
+    : 'bg-accent-soft border-accent/40 text-accent hover:bg-accent hover:text-accent-fg hover:border-accent'
+  const size = full ? 'px-4 py-2 text-[13.5px]' : 'w-[84px] py-1 text-[12.5px]'
   return (
-    <button onClick={click} title={inside ? `Remove ${symbol} from the stock cart` : `Add ${symbol} to the stock cart`}
-      className={`group inline-grid place-items-center w-6 h-6 rounded-md border text-[12px] shrink-0 ${inside ? 'bg-accent border-accent text-accent-fg' : 'border-line text-muted hover:border-accent hover:text-accent'}`}>
-      {inside ? <><Check size={13} className="group-hover:hidden" /><Minus size={13} className="hidden group-hover:block" /></> : <Plus size={13} />}
+    <button onClick={click} title={title} aria-label={title} aria-pressed={inside} className={`${base} ${look} ${size}`}>
+      {inside ? (
+        <>
+          <span className="inline-flex items-center gap-1 group-hover:hidden"><Check size={full ? 15 : 13} strokeWidth={2.6} /> {full ? 'In your cart' : 'Added'}</span>
+          <span className="hidden items-center gap-1 group-hover:inline-flex"><Minus size={full ? 15 : 13} strokeWidth={2.6} /> Remove</span>
+        </>
+      ) : (
+        <><Plus size={full ? 15 : 13} strokeWidth={2.6} /> {full ? 'Add to stock cart' : 'Add'}</>
+      )}
     </button>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, History } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { Panel, useSort, Empty } from '@/components/ui'
 import { SetupChip, fx, fp, fn, usd, cap } from '@/components/pillarUi'
@@ -33,9 +33,6 @@ export default function Results() {
           <Link to="/" className="text-[13px] text-muted hover:text-fg inline-flex items-center gap-1 mb-2"><ArrowLeft size={14} /> Stock finder</Link>
           <h1 className="text-2xl font-semibold tracking-tight">{rows.length} matching stocks</h1>
           <div className="text-[13px] text-muted mt-1">{summary.length ? `Screened on: ${summary.map((l) => (l === 'Industry' ? themes.join(', ') : l)).join(' · ')}` : 'No boxes set: every stock is shown.'}</div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link className="btn btn-primary" to={`/backtest?${toParams(c)}`}><History size={14} /> Test these settings on the past 5 years</Link>
         </div>
       </div>
 
