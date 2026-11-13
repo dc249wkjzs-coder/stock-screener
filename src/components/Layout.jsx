@@ -6,14 +6,18 @@ import { supabase } from '@/lib/supabase'
 import StockCart from '@/components/StockCart'
 import ThemeSwitch, { ThemeButton } from '@/components/ThemeSwitch'
 
-export const NAV = [
-  { to: '/', label: 'Stock finder', icon: SlidersHorizontal },
-  { to: '/results', label: 'Results', icon: List },
+// The three main pages are steps in order; the rest are reference pages you can open any time.
+export const STEPS = [
+  { to: '/', label: 'Stock finder', hint: 'Choose what you want', icon: SlidersHorizontal },
+  { to: '/results', label: 'Results', hint: 'See the matches, add picks', icon: List },
+  { to: '/portfolio', label: 'My portfolio', hint: 'Score your picks', icon: Briefcase, count: true },
+]
+export const REFERENCE = [
   { to: '/lookup', label: 'Look up a stock', icon: Search },
-  { to: '/portfolio', label: 'My portfolio', icon: Briefcase, count: true },
   { to: '/learn', label: 'Definitions', icon: BookOpen },
   { to: '/status', label: 'Data status', icon: Activity },
 ]
+export const NAV = [...STEPS, ...REFERENCE]
 
 export default function Layout() {
   const d = useData()
@@ -31,13 +35,37 @@ export default function Layout() {
             <div className="text-[11.5px] text-muted">Choose · Screen · Assess</div>
           </div>
         </div>
-        <nav className="px-3 grid gap-0.5">
-          {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.to === '/'}
-              className={({ isActive }) => `flex items-center gap-3 rounded-[10px] px-3 py-[7px] text-[13.5px] ${isActive ? 'bg-side-active font-semibold' : 'font-normal hover:bg-side-active/60'}`}>
-              {({ isActive }) => (<><n.icon size={17} strokeWidth={1.8} className={isActive ? 'text-accent' : 'text-accent/80'} />{n.label}{n.count && d.portfolio.length > 0 && <span className="ml-auto rounded-full bg-accent px-1.5 text-[11px] text-accent-fg num font-semibold">{d.portfolio.length}</span>}</>)}
-            </NavLink>
-          ))}
+        <nav className="px-3">
+          <div className="px-3 pb-1.5 text-[11px] font-semibold text-muted">Build a portfolio</div>
+          <ol className="relative grid gap-0.5">
+            {/* the line joining the three step numbers */}
+            <span aria-hidden className="absolute left-[23px] top-5 bottom-5 w-px bg-accent/30" />
+            {STEPS.map((n, i) => (
+              <li key={n.to}>
+                <NavLink to={n.to} end={n.to === '/'}
+                  className={({ isActive }) => `relative flex items-center gap-3 rounded-[10px] px-3 py-2 ${isActive ? 'bg-side-active' : 'hover:bg-side-active/60'}`}>
+                  {({ isActive }) => (<>
+                    <span className={`relative z-10 w-[22px] h-[22px] shrink-0 grid place-items-center rounded-full text-[12px] font-semibold num ${isActive ? 'bg-accent text-accent-fg' : 'bg-surface text-accent ring-1 ring-accent/40'}`}>{i + 1}</span>
+                    <span className="min-w-0">
+                      <span className={`block text-[13.5px] leading-tight ${isActive ? 'font-semibold' : ''}`}>{n.label}</span>
+                      <span className="block text-[11.5px] text-muted leading-tight mt-0.5">{n.hint}</span>
+                    </span>
+                    {n.count && d.portfolio.length > 0 && <span className="ml-auto rounded-full bg-accent px-1.5 text-[11px] text-accent-fg num font-semibold">{d.portfolio.length}</span>}
+                  </>)}
+                </NavLink>
+              </li>
+            ))}
+          </ol>
+          <div className="mx-3 my-3 border-t border-line" />
+          <div className="px-3 pb-1.5 text-[11px] font-semibold text-muted">Reference</div>
+          <div className="grid gap-0.5">
+            {REFERENCE.map((n) => (
+              <NavLink key={n.to} to={n.to}
+                className={({ isActive }) => `flex items-center gap-3 rounded-[10px] px-3 py-[7px] text-[13.5px] ${isActive ? 'bg-side-active font-semibold' : 'text-muted hover:text-fg hover:bg-side-active/60'}`}>
+                {({ isActive }) => (<><n.icon size={16} strokeWidth={1.8} className={isActive ? 'text-accent' : ''} />{n.label}</>)}
+              </NavLink>
+            ))}
+          </div>
         </nav>
         <div className="mt-auto px-5 pb-5 text-[12px] text-muted grid gap-2">
           <ThemeSwitch />
@@ -57,9 +85,15 @@ export default function Layout() {
               {!d.demo && <button className="text-[12px] text-muted flex items-center gap-1" onClick={() => supabase.auth.signOut()}><LogOut size={13} /> Sign out</button>}
             </div>
           </div>
-          <nav className="flex gap-1 overflow-x-auto px-3 pb-2">
-            {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => `shrink-0 rounded-full px-3 py-1.5 text-[13px] ${isActive ? 'bg-fg text-bg font-medium' : 'text-muted'}`}>{n.label}{n.count && d.portfolio.length > 0 ? ` (${d.portfolio.length})` : ''}</NavLink>
+          <nav className="flex items-center gap-1 overflow-x-auto px-3 pb-2">
+            {STEPS.map((n, i) => (
+              <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => `shrink-0 inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-3 py-1 text-[13px] ${isActive ? 'bg-fg text-bg font-medium' : 'text-fg'}`}>
+                {({ isActive }) => (<><span className={`w-5 h-5 grid place-items-center rounded-full text-[11px] font-semibold num ${isActive ? 'bg-accent text-accent-fg' : 'text-accent ring-1 ring-accent/40'}`}>{i + 1}</span>{n.label}{n.count && d.portfolio.length > 0 ? ` (${d.portfolio.length})` : ''}</>)}
+              </NavLink>
+            ))}
+            <span aria-hidden className="shrink-0 mx-1 h-5 w-px bg-line" />
+            {REFERENCE.map((n) => (
+              <NavLink key={n.to} to={n.to} className={({ isActive }) => `shrink-0 rounded-full px-3 py-1.5 text-[13px] ${isActive ? 'bg-fg text-bg font-medium' : 'text-muted'}`}>{n.label}</NavLink>
             ))}
           </nav>
         </div>
