@@ -14,7 +14,7 @@ import { checks } from '@shared/criteria.js'
 import { date as fdate } from '@/lib/format'
 
 const CHECK_TERM = { themes: null, moatMin: 'moat', debtMax: 'net-debt-ebitda', pe: 'forward-pe', pegMax: 'peg', growthMin: 'eps-growth', marginMin: 'ebitda-margin', profitable: 'gaap-adjusted', noDilution: 'financing', capMin: 'market-cap', betaMax: 'beta', aiRiskMax: 'ai-risk', entry: 'buy-zone' }
-const MOAT_TERM = { 'Return on operating capital': 'roic', Durability: 'roic', Consistency: 'track-record', 'Pricing power': 'gross-margin', 'Margin premium over peers': 'margin-premium', Erosion: 'gross-margin', 'Loss years': 'loss-years' }
+const MOAT_TERM = { 'Return on operating capital': 'roic', Durability: 'durability', Consistency: 'track-record', 'Pricing power': 'gross-margin', 'Margin premium over peers': 'margin-premium', Erosion: 'erosion', 'Loss years': 'loss-years' }
 
 export default function Stock() {
   const { symbol } = useParams()

@@ -53,7 +53,7 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - `shared/valuation.js` – fair value range (DCF, own 5-yr P/E, mandate PEG-2 P/E, analyst target; median = middle),
   downside reference levels, entry status (fail / incomplete / extended / wait / zone / zone-confirmed / below)
   and the Fibonacci buy ladder. Confirmation = close above 20-day avg AND RSI > 30; zone = within 3% of a level.
-- `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (59 terms). `<Term id>` / `<Info id>` link
+- `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (62 terms, beginner level, in 11 sections ordered as a learning path; each entry: simple, like, example, rule, watch, where). `<Term id>` / `<Info id>` link
   any label to `/learn#id`; add a glossary entry for every new number shown on the site.
 - `src/lib/assessment.js` – strengths/weaknesses lines, each a figure vs a fixed threshold.
 - `scripts/calibrate.mjs` – pulls live FMP data for given tickers and prints the verdicts
