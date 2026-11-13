@@ -2,25 +2,30 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, RotateCcw, Save, Trash2 } from 'lucide-react'
 import { useData } from '@/lib/data'
-import { BLANK, PRESETS, THEMES, OPTIONS, optionLabel, matches, activeCount, riskProfile, toParams } from '@shared/criteria.js'
+import { BLANK, PRESETS, STRATEGIES, THEMES, OPTIONS, optionLabel, matches, activeCount, riskProfile, toParams } from '@shared/criteria.js'
 import RiskMeter from '@/components/RiskMeter'
 import { Info } from '@/components/Term'
 
 // The boxes on the landing page, in order. Each one sets one part of the screen.
 const BOXES = [
   { key: 'moatMin', title: 'Moat', q: 'How strong a competitive advantage? (minimum, 1–10)', term: 'moat' },
+  { key: 'roicMin', title: 'Return on capital', q: 'Profit made on the money invested in the business (5-year median), at least', term: 'roic' },
   { key: 'debtMax', title: 'Debt', q: 'How much debt is OK? (net debt ÷ EBITDA)', term: 'net-debt-ebitda' },
+  { key: 'health', title: 'Financial health', q: 'Scores that flag weak or strong finances', term: 'piotroski' },
   { key: 'pe', title: 'P/E', q: 'Forward P/E: the price you pay for each $1 of next year\'s earnings', term: 'forward-pe' },
   { key: 'pegMax', title: 'PEG', q: 'P/E compared with growth (lower = cheaper for its growth)', term: 'peg' },
+  { key: 'magicTop', title: 'Magic Formula', q: 'Rank on profit for the price plus return on capital', term: 'magic-formula' },
   { key: 'growthMin', title: 'Earnings growth', q: 'Expected EPS growth a year, at least', term: 'eps-growth' },
-  { key: 'marginMin', title: 'Profit margin', q: 'EBITDA margin, at least', term: 'ebitda-margin' },
   { key: 'revGrowthMin', title: 'Sales growth', q: 'Revenue growth last year, at least', term: 'revenue-growth' },
+  { key: 'marginMin', title: 'Profit margin', q: 'EBITDA margin, at least', term: 'ebitda-margin' },
   { key: 'fcfYieldMin', title: 'Free cash flow', q: 'Real cash left over, compared with the share price', term: 'fcf-yield' },
-  { key: 'dividendMin', title: 'Dividend', q: 'Cash paid to shareholders each year, as % of the price', term: 'dividend-yield' },
-  { key: 'capMin', title: 'Company size', q: 'Market value, at least', term: 'market-cap' },
+  { key: 'dividend', title: 'Dividend', q: 'Cash paid to shareholders each year', term: 'dividend-yield' },
+  { key: 'cap', title: 'Company size', q: 'Market value', term: 'market-cap' },
   { key: 'betaMax', title: 'Volatility', q: 'Beta, at most (1 = moves like the market)', term: 'beta' },
+  { key: 'dropMax', title: 'Past drops', q: 'Deepest fall from a high in ~2 years, no worse than', term: 'pullback' },
+  { key: 'chg1yMin', title: 'Price momentum', q: 'Share price change over the last 12 months, at least', term: 'momentum' },
   { key: 'quality', title: 'Quality checks', q: 'Rule out loss-makers and companies selling new shares', term: 'gaap-adjusted' },
-  { key: 'aiRiskMax', title: 'AI risk', q: 'How exposed to AI disruption, at most', term: 'ai-risk' },
+  { key: 'ai', title: 'AI', q: 'Exposure to AI disruption, and how much AI helps', term: 'ai-risk' },
   { key: 'entry', title: 'Entry timing', q: 'Only show stocks at a good moment to buy', term: 'buy-zone' },
 ]
 
@@ -45,21 +50,45 @@ export default function Build() {
           <p className="text-muted text-[14px] mt-1 max-w-2xl">Pick what matters to you in each box, or start from a preset. The risk meter reads the stocks that match as you go. Then press Continue to see them.</p>
         </div>
 
-        <section className="grid gap-3">
-          <div className="label">Start from a preset</div>
-          <div className="flex flex-wrap gap-2">
-            {d.presets.map((p) => (
-              <span key={p.id} className={`inline-flex items-center rounded-full border ${same(p.criteria) ? 'border-accent bg-accent-soft text-accent' : 'border-line'}`}>
-                <button className="pl-3 pr-1.5 py-1.5 text-[13px] font-semibold" onClick={() => d.setScreen({ ...BLANK, ...p.criteria })} title="Your saved preset">★ {p.name}</button>
-                <button className="pr-2.5 pl-1 py-1.5 text-faint hover:text-loss" title={`Delete "${p.name}"`} aria-label={`Delete ${p.name}`}
-                  onClick={() => { if (confirm(`Delete the preset "${p.name}"?`)) d.deletePreset(p) }}><Trash2 size={12} /></button>
-              </span>
-            ))}
-            {PRESETS.map((p) => (
-              <button key={p.id} title={p.blurb} onClick={() => d.setScreen({ ...BLANK, ...p.c })}
-                className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold ${same(p.c) ? 'border-accent bg-accent-soft text-accent' : 'border-line hover:border-fg/30'}`}>{p.label}</button>
-            ))}
-            <button className="rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg inline-flex items-center gap-1" onClick={() => d.setScreen({ ...BLANK })}><RotateCcw size={13} /> Clear all</button>
+        <section className="grid gap-4">
+          {d.presets.length > 0 && (
+            <div className="grid gap-2">
+              <div className="label">Your presets</div>
+              <div className="flex flex-wrap gap-2">
+                {d.presets.map((p) => (
+                  <span key={p.id} className={`inline-flex items-center rounded-full border ${same(p.criteria) ? 'border-accent bg-accent-soft text-accent' : 'border-line'}`}>
+                    <button className="pl-3 pr-1.5 py-1.5 text-[13px] font-semibold" onClick={() => d.setScreen({ ...BLANK, ...p.criteria })} title="Your saved preset">★ {p.name}</button>
+                    <button className="pr-2.5 pl-1 py-1.5 text-faint hover:text-loss" title={`Delete "${p.name}"`} aria-label={`Delete ${p.name}`}
+                      onClick={() => { if (confirm(`Delete the preset "${p.name}"?`)) d.deletePreset(p) }}><Trash2 size={12} /></button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="grid gap-2">
+            <div className="flex items-baseline gap-2"><div className="label">Quick start</div><span className="text-[12px] text-faint">simple starting points</span></div>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((p) => (
+                <button key={p.id} title={p.blurb} onClick={() => d.setScreen({ ...BLANK, ...p.c })}
+                  className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold ${same(p.c) ? 'border-accent bg-accent-soft text-accent' : 'border-line hover:border-fg/30'}`}>{p.label}</button>
+              ))}
+              <button className="rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg inline-flex items-center gap-1" onClick={() => d.setScreen({ ...BLANK })}><RotateCcw size={13} /> Clear all</button>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <div className="flex items-baseline gap-2"><div className="label">Investor strategies</div><span className="text-[12px] text-faint">well-known approaches, each a fixed set of rules<Info id="investor-strategies" /></span></div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {STRATEGIES.map((p) => {
+                const on = same(p.c)
+                return (
+                  <button key={p.id} onClick={() => d.setScreen({ ...BLANK, ...p.c })} aria-pressed={on}
+                    className={`text-left rounded-2xl border px-3.5 py-2.5 transition-colors ${on ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:border-accent/50'}`}>
+                    <div className={`font-semibold text-[13.5px] ${on ? 'text-accent' : ''}`}>{p.label}{p.who && <span className="font-normal text-[12px] text-muted"> · {p.who}</span>}</div>
+                    <div className="text-[12px] text-muted leading-snug mt-0.5">{p.blurb}</div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </section>
 
@@ -87,7 +116,7 @@ export default function Build() {
             </section>
           ))}
         </div>
-        <p className="text-[12px] text-faint">A stock missing the data a box needs doesn't match that box. AI risk only covers the stocks rated so far. Not investment advice.</p>
+        <p className="text-[12px] text-faint">A stock missing the data a box needs doesn't match that box. AI scores only cover the stocks rated so far. Not investment advice.</p>
       </div>
 
       {/* Summary: sticky side panel on wide screens, bottom bar on phones. */}
@@ -131,7 +160,14 @@ export default function Build() {
   )
 }
 
-const isOn = (k, c) => k === 'pe' ? c.peMin != null || c.peMax != null : k === 'quality' ? c.profitable || c.noDilution : k === 'entry' ? c.entry !== 'any' : c[k] != null
+const GROUPS = {
+  pe: [['peMin', 'At least'], ['peMax', 'At most']],
+  dividend: [['dividendMin', 'Yield, at least'], ['payoutMax', 'Share of profit paid out, at most']],
+  cap: [['capMin', 'At least'], ['capMax', 'At most']],
+  health: [['piotroskiMin', 'Piotroski score (0–9), at least'], ['altmanMin', 'Altman Z-score, at least'], ['coverMin', 'Interest cover, at least (net cash always passes)']],
+  ai: [['aiRiskMax', 'AI risk, at most'], ['aiBenefitMin', 'AI benefit, at least']],
+}
+const isOn = (k, c) => GROUPS[k] ? GROUPS[k].some(([x]) => c[x] != null) : k === 'quality' ? c.profitable || c.noDilution : k === 'entry' ? c.entry !== 'any' : c[k] != null
 
 function Chip({ on, onClick, children }) {
   return (
@@ -157,15 +193,14 @@ function BoxBody({ k, c, set }) {
             onChange={(e) => set({ moatMin: Number(e.target.value) || null })} aria-label="Minimum moat" />
           <span className="num font-semibold w-14 text-right">{c.moatMin == null ? 'Any' : `${c.moatMin}+`}</span>
         </div>
-        <div className="text-[11.5px] text-faint">Calculated scores stop at 8; 9–10 only come from your own scores on a stock's page.</div>
+        <div className="text-[11.5px] text-faint">Calculated scores stop at 8; 9 needs a written assessment, 10 only your own score on a stock's page.</div>
       </div>
     )
   }
-  if (k === 'pe') {
+  if (GROUPS[k]) {
     return (
       <div className="grid gap-2">
-        <div><div className="text-[11.5px] text-faint mb-1">At least</div><Choices k="peMin" c={c} set={set} /></div>
-        <div><div className="text-[11.5px] text-faint mb-1">At most</div><Choices k="peMax" c={c} set={set} /></div>
+        {GROUPS[k].map(([x, label]) => <div key={x}><div className="text-[11.5px] text-faint mb-1">{label}</div><Choices k={x} c={c} set={set} /></div>)}
       </div>
     )
   }

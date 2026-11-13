@@ -47,7 +47,11 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - `supabase/functions/stock-news/` – live quote + FMP stock news for one symbol, called by the stock page
   (`verify_jwt: true` and it also checks the caller is a signed-in user, so the public key alone can't use it).
 - `supabase/schema.sql` – tables, RLS, helper functions. `supabase/jobs.sql` – schedules.
-- `shared/criteria.js` – the screen: industry THEMES, BLANK criteria, built-in PRESETS, `checks()`/`matches()`,
+- `shared/criteria.js` – the screen: industry THEMES, BLANK criteria, built-in PRESETS ("Quick start") and STRATEGIES
+  ("Investor strategies": Magic Formula, Dividend grower, Buffett-style, Peter Lynch, Fallen quality, Cash machines, Low
+  volatility, AI winners, Momentum, Small-cap growth, Financially strong; boxes added for them: roicMin (metrics.roicMedian,
+  loaded as `roic:metrics->roicMedian`), magicTop, payoutMax, capMax, chg1yMin, dropMax, piotroskiMin, altmanMin, coverMin
+  (net cash passes), aiBenefitMin), `checks()`/`matches()`,
   `riskProfile()` (risk meter: median beta, % loss-makers, median debt, median fwd P/E, median deepest 2-yr drop,
   median moat; each 0–4, averaged → Lower/Moderate/High/Very high), URL params. Tests in `tests/criteria.test.js`.
 - `src/` – the site. The screen being built is kept in localStorage; saved presets per user in `scr_presets`
@@ -57,7 +61,7 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - `shared/valuation.js` – fair value range (DCF, own 5-yr P/E, mandate PEG-2 P/E, analyst target; median = middle),
   downside reference levels, entry status (fail / incomplete / extended / wait / zone / zone-confirmed / below)
   and the Fibonacci buy ladder. Confirmation = close above 20-day avg AND RSI > 30; zone = within 3% of a level.
-- `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (69 terms, beginner level, in 11 sections ordered as a learning path; each entry: simple, like, example, rule, watch, where). `<Term id>` / `<Info id>` link
+- `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (71 terms, beginner level, in 11 sections ordered as a learning path; each entry: simple, like, example, rule, watch, where). `<Term id>` / `<Info id>` link
   any label to `/learn#id`; add a glossary entry for every new number shown on the site.
 - `shared/picks.js` + `src/components/BestMatches.jsx` – "Best matches" above the Results list: the matching stocks
   ranked against each other (0–100 within the group) in six categories: all-round (quality 30 / growth 25 / value 25 /

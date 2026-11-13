@@ -14,7 +14,7 @@ export const GROUPS = [
   ['8 · When to buy: the chart', ['sma', 'sma-20', 'sma-50', 'sma-200', 'rsi', 'fibonacci', 'swing', 'buy-zone', 'confirmation', 'buy-ladder', 'off-high', 'falling-knife', 'pullback']],
   ['9 · How risky is it?', ['beta', 'crash-test', 'risk-level']],
   ['10 · Company filings', ['financing', 'shelf', 'prospectus', 'atm', 'convertible', 'new-company']],
-  ['11 · Using this site', ['presets', 'best-matches', 'portfolio-score', 'backtest']],
+  ['11 · Using this site', ['presets', 'investor-strategies', 'best-matches', 'portfolio-score', 'backtest']],
 ]
 
 export const TERMS = {
@@ -502,6 +502,15 @@ export const TERMS = {
     rule: 'Good companies do get too cheap on the way down. Waiting for "bounce confirmed" helps avoid buying too early.',
     where: 'Shown through "Off high", RSI and the Entry column.',
   },
+  momentum: {
+    term: 'Price momentum',
+    simple: 'How much the share price has risen (or fallen) over the last 12 months.',
+    like: 'A runner already moving fast is more likely to keep going for a bit than one standing still.',
+    example: 'A stock went from $50 to $70 in a year: momentum is +40%.',
+    rule: 'Studies find that stocks that rose most over the past 6–12 months have tended to keep doing a little better for a few months more, on average.',
+    watch: 'Momentum can reverse suddenly and sharply. It says nothing about whether the business or the price is good.',
+    where: 'Stock finder → Price momentum; the Momentum strategy.',
+  },
   pullback: {
     term: 'Typical and deepest dip',
     simple: 'How far this stock usually falls in a dip, and the worst fall in the last ~2 years.',
@@ -598,6 +607,15 @@ export const TERMS = {
     example: '"Quality compounder" = moat 7+, PEG up to 2, earnings growth 10%+, debt up to 3x, profitable, no recent share sales.',
     rule: 'Use the built-in ones to learn different styles; save your own once you know what you like.',
     where: 'Stock finder: set the boxes, type a name, press Save. Yours have a star and are saved to your account.',
+  },
+  'investor-strategies': {
+    term: 'Investor strategies',
+    simple: 'Ready-made settings that copy a well-known way of picking stocks, such as Warren Buffett\'s or Peter Lynch\'s, or a common style like momentum or dividend growth.',
+    like: 'A famous chef\'s recipe. The quick-start presets are "something healthy" or "something quick"; a strategy is a specific dish with set ingredients.',
+    example: 'Buffett-style sets five boxes at once: moat 7+, return on capital 15%+, debt up to 2x, forward P/E up to 25, profitable. Press it and every box changes to those values.',
+    rule: 'Each strategy is a simplified version built from the boxes on this page. You can change any box afterwards and save the result as your own preset.',
+    watch: 'These are rough copies, not what those investors actually own. Momentum and Magic Formula in particular go through long spells of doing worse than the market.',
+    where: 'Stock finder, under "Investor strategies".',
   },
   'best-matches': {
     term: 'Best matches',

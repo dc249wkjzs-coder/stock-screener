@@ -16,7 +16,10 @@ export function replayable(c) {
   if (C.noDilution) notes.push('"No recent share sales" counts a company as diluting if its share count rose more than 3% in its last fiscal year.');
   if (C.moatMin != null) notes.push('Moat uses the score calculated from the reports public at each date; written assessments and your own scores are today\'s judgements, so they aren\'t applied to the past.');
   if (C.profitable) notes.push('"Profitable" uses the last annual report at each date.');
-  return { criteria: { ...C, aiRiskMax: null, entry: C.entry === 'off20' ? 'off20' : 'any' }, notes };
+  const today = ['roicMin', 'magicTop', 'payoutMax', 'chg1yMin', 'piotroskiMin', 'altmanMin', 'coverMin', 'aiBenefitMin'].filter((k) => C[k] != null);
+  if (today.length) notes.push(`Ignored in the replay (only today's figures are stored): ${today.length} box${today.length > 1 ? 'es' : ''}.`);
+  const off = Object.fromEntries(today.map((k) => [k, null]));
+  return { criteria: { ...C, ...off, aiRiskMax: null, entry: C.entry === 'off20' ? 'off20' : 'any' }, notes };
 }
 
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);

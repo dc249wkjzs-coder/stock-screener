@@ -54,7 +54,7 @@ export function DataProvider({ children }) {
         return
       }
       const [rows, pending, overrides, ai, presets, reviews, portfolio] = await Promise.all([
-        selectAll('scr_stocks', 'symbol,card,scored_at,fundamentals_at', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')),
+        selectAll('scr_stocks', 'symbol,card,scored_at,fundamentals_at,roic:metrics->roicMedian', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')),
         // Stocks in the universe whose financials haven't been downloaded and scored yet.
         selectAll('scr_stocks', 'symbol,name', (q) => q.eq('active', true).is('card', null).order('symbol')),
         selectAll('scr_overrides', 'symbol,moat,note'),
@@ -65,7 +65,7 @@ export function DataProvider({ children }) {
       ])
       setState({
         loading: false, error: null,
-        cards: rows.map((r) => ({ ...r.card, fundamentalsAt: r.fundamentals_at })),
+        cards: rows.map((r) => ({ ...r.card, roic: r.roic == null ? null : Number(r.roic), fundamentalsAt: r.fundamentals_at })),
         pending,
         ai: Object.fromEntries(ai.map((a) => [a.symbol, a])),
         overrides: Object.fromEntries(overrides.map((o) => [o.symbol, o])),
