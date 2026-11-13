@@ -125,7 +125,7 @@ export const optionLabel = (key, v) => {
     case 'altmanMin': return v >= 3 ? `${v}+ (safe)` : `${v}+ (not distressed)`;
     case 'coverMin': return `${v}x+`;
     case 'aiBenefitMin': return `${v}+`;
-    case 'entry': return { zone: 'Near a buy level', confirmed: 'Bounce confirmed', off20: '20%+ below its high' }[v];
+    case 'entry': return { zone: 'In the buy zone', confirmed: 'Buy zone · bouncing', off20: '20%+ below its high' }[v];
     default: return String(v);
   }
 };

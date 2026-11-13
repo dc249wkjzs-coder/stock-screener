@@ -10,7 +10,7 @@ export function replayable(c) {
   const C = { ...BLANK, ...c };
   const notes = [];
   if (C.aiRiskMax != null) notes.push('AI risk is ignored: the AI ratings are recent judgements, not available for past dates.');
-  if (C.entry === 'zone' || C.entry === 'confirmed') notes.push('Entry timing "near a buy level" / "bounce confirmed" is ignored; only "20%+ below its high" can be replayed.');
+  if (C.entry === 'zone' || C.entry === 'confirmed') notes.push('Entry timing "in the buy zone" / "buy zone · bouncing" is ignored; only "20%+ below its high" can be replayed.');
   if (C.peMin != null || C.peMax != null || C.pegMax != null) notes.push('P/E and PEG use the last annual EPS reported by then (analyst forecasts from the past aren\'t available).');
   if (C.growthMin != null || C.pegMax != null) notes.push('Earnings growth uses actual EPS growth over the two previous fiscal years instead of analyst forecasts.');
   if (C.noDilution) notes.push('"No recent share sales" counts a company as diluting if its share count rose more than 3% in its last fiscal year.');
