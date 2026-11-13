@@ -44,9 +44,9 @@ export default function Backtest() {
     <div className="grid gap-5">
       <div>
         <Link to={`/results?${toParams(c)}`} className="text-[13px] text-muted hover:text-fg inline-flex items-center gap-1 mb-2"><ArrowLeft size={14} /> Results</Link>
-        <h1 className="text-2xl font-semibold tracking-tight">How has this screen done?</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Past 5 years: how this screen would have done</h1>
         <p className="text-[13.5px] text-muted mt-1 max-w-3xl">
-          Every 3 months for the last 5 years, the screen is run on the numbers that were public at the time, the matching stocks are bought in equal amounts and held for 3 months. <Term id="backtest">How this works</Term>
+          A look back, not a forecast. Every 3 months for the last 5 years, the screen is run on the numbers that were public at the time, the matching stocks are bought in equal amounts and held for 3 months. <Term id="backtest">How this works</Term>
         </p>
         <div className="text-[13px] text-muted mt-1">{summary.length ? `Screened on: ${summary.join(' · ')}` : 'No boxes set: every stock.'}</div>
       </div>

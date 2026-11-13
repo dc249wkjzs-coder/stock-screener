@@ -624,7 +624,7 @@ export const TERMS = {
     example: 'Every 3 months for the last 5 years, the site rebuilds each company\'s numbers from the reports that were public at the time, picks the stocks that passed your boxes, and follows them for the next 3 months. If $10,000 grew to $18,000 while the S&P 500 grew to $16,000, the screen beat the market.',
     rule: 'Beating both the S&P 500 and "all screener stocks" over 5 years is encouraging. Look at the worst drop too: could you have sat through it?',
     watch: 'The past doesn\'t guarantee the future. Only companies that still exist today are included (ones that failed or were bought are missing), which flatters results; "all screener stocks" has the same flaw, so compare with it. Boxes based on analyst forecasts use actual past growth instead. Prices only: no dividends, trading costs or taxes.',
-    where: 'The "How has this screen done?" page, opened from Results.',
+    where: 'The "Past 5 years: test this screen" button on Results.',
   },
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, SlidersHorizontal, History } from 'lucide-react'
+import { ArrowLeft, History } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { Panel, useSort, Empty } from '@/components/ui'
 import { SetupChip, fx, fp, fn, usd, cap } from '@/components/pillarUi'
@@ -35,8 +35,7 @@ export default function Results() {
           <div className="text-[13px] text-muted mt-1">{summary.length ? `Screened on: ${summary.map((l) => (l === 'Industry' ? themes.join(', ') : l)).join(' · ')}` : 'No boxes set: every stock is shown.'}</div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link className="btn btn-primary" to={`/backtest?${toParams(c)}`}><History size={14} /> How has this screen done?</Link>
-          <button className="btn" onClick={() => navigate('/')}><SlidersHorizontal size={14} /> Change the screen</button>
+          <Link className="btn btn-primary" to={`/backtest?${toParams(c)}`}><History size={14} /> Past 5 years: test this screen</Link>
         </div>
       </div>
 
