@@ -11,7 +11,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { fmpGet, fetchUniverse, fetchFundamentals, fetchPriceHistory, fetchHistory, classifyFiling, callCount, setRateLimit } from './lib/fmp.js';
 import { buildHistory, snapshotDates, stockSnapshots, finishDate } from './lib/replay.js';
 import { buildMetrics } from './lib/metrics.js';
-import { buildContext, moatScore, magicFormulaRanks } from './lib/crossSection.js';
+import { buildContext, moatScore, moatInputs, magicFormulaRanks } from './lib/crossSection.js';
 import { priceStats, fibonacci } from './lib/indicators.js';
 import { makeCard } from './lib/card.js';
 
@@ -142,9 +142,13 @@ async function taskScore() {
   const all = rows.map((r) => r.metrics);
   const ctx = buildContext(all);
   const magic = magicFormulaRanks(all);
+  // Up to 10 years of annual reports (from the backtest history) for the moat; the 5 years in metrics otherwise.
+  const fyBy: Record<string, any[]> = {};
+  for (const r of await selectAll('scr_history', 'symbol,fy', (q) => q.not('fy', 'is', null))) fyBy[r.symbol] = r.fy;
   const now = new Date().toISOString();
   const out = all.map((m: any) => {
-    const moat = moatScore(m, ctx);
+    const fy = fyBy[m.symbol];
+    const moat = moatScore(fy?.length >= 4 ? { ...m, ...moatInputs(fy) } : m, ctx);
     const t = tech[m.symbol] || null;
     return { symbol: m.symbol, card: { ...makeCard(m, t, moat, magic[m.symbol]), moatParts: moat.parts, fib: t?.fib ?? null }, scored_at: now };
   });

@@ -41,3 +41,21 @@ test('A reported gross margin of ~100% (no cost of revenue) scores as industry l
   const r = moatScore({ ...base, grossMargin: 1, grossMarginYears: [1, 1, 1, 1, 1] }, ctx)
   assert.equal(r.parts.find((p) => p.label === 'Pricing power').pts, 1)
 })
+
+import { moatInputs, blendMoat } from '../shared/crossSection.js'
+
+test('Stock-based pay is added back before judging losses and returns', () => {
+  const yr = (y, op, sbc) => ({ date: `${y}-12-31`, revenue: 100, grossProfit: 60, operatingIncome: op, ebit: op, incomeBeforeTax: op, incomeTaxExpense: 0,
+    totalAssets: 200, cashAndShortTermInvestments: 50, totalCurrentLiabilities: 20, stockBasedCompensation: sbc })
+  const mi = moatInputs([yr(2025, -2, 20), yr(2024, 5, 18), yr(2023, 10, 15), yr(2022, 12, 12)])
+  assert.equal(mi.lossYears, 0)
+  assert.ok(Math.abs(mi.opMarginYears[0] - 0.18) < 1e-9)
+  assert.equal(mi.incomeYears, 4)
+})
+
+test('Blend: 60% written assessment, 40% numbers, capped at 9', () => {
+  assert.equal(blendMoat(8, null), 8)
+  assert.equal(blendMoat(8, { rating: 10 }), 9)
+  assert.equal(blendMoat(1, { rating: 7 }), 5)
+  assert.equal(blendMoat(null, { rating: 10 }), 9)
+})

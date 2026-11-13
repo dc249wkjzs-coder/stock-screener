@@ -27,6 +27,20 @@ select cron.schedule('screener-score',        '50 * * * *',     $$select public.
 
 -- Turn the SEC filing reader on (SEC requires a name + real contact email):
 -- select vault.create_secret('LifeLedgerScreener you@example.com', 'sec_user_agent');
--- Backtest data: 12 years of annual reports + weekly prices per stock (refreshed monthly), then the replay.
-select cron.schedule('screener-history', '1-59/2 * * * *', $$select public.scr_run('history', '&limit=30&rate=120')$$);
+-- Backtest data and the 10-year moat: 12 years of annual reports + weekly prices per stock (refreshed monthly), then the replay.
+-- Steady state: 8 stocks every 2 minutes (odd minutes) at 60 calls/min, beside fundamentals (150/min): under FMP's 300/min.
+select cron.schedule('screener-history', '1-59/2 * * * *', $$select public.scr_run('history', '&limit=8&rate=60')$$);
 select cron.schedule('screener-replay',  '*/5 * * * *',    $$select public.scr_run('replay', '&limit=250')$$);
+-- Full (re)load of history: pause fundamentals, run history alone at 40 stocks/2 min, rate 240, and let a handoff
+-- job switch back to the steady state when scr_history_todo(1) is empty (see the 2026-11-13 load):
+--   select cron.alter_job((select jobid from cron.job where jobname='screener-fundamentals'), active := false);
+--   select cron.alter_job((select jobid from cron.job where jobname='screener-history'), schedule := '*/2 * * * *',
+--     command := $x$select public.scr_run('history', '&limit=40&rate=240')$x$);
+--   update scr_history set fetched_at = null where symbol <> 'SPY';
+--   select cron.schedule('screener-handoff', '*/10 * * * *', $h$ do $b$ begin
+--     if not exists (select 1 from public.scr_history_todo(1)) then
+--       perform cron.alter_job((select jobid from cron.job where jobname = 'screener-fundamentals'), active := true);
+--       perform cron.alter_job((select jobid from cron.job where jobname = 'screener-history'), schedule := '1-59/2 * * * *',
+--         command := $x$select public.scr_run('history', '&limit=8&rate=60')$x$);
+--       perform cron.unschedule('screener-handoff');
+--     end if; end $b$; $h$);

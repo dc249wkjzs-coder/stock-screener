@@ -6,7 +6,7 @@ stock page; **Look up a stock** (`/lookup`) library search; Definitions; Data st
 above $500M (US companies plus foreign companies on NYSE/Nasdaq such as ASML, TSM). Private: behind a Supabase login.
 **Licensing:** FMP Starter is personal use only; FMP says showing its data to anyone else (free or not) needs a Data
 Display and Licensing Agreement. Jameson knows; he doesn't want it public. Don't open sign-ups or make it public without that.
-Sister project of Life Ledger (same Supabase project and login). Last updated: 2026-11-10.
+Sister project of Life Ledger (same Supabase project and login). Last updated: 2026-11-13.
 See the Life Ledger repo's CLAUDE.md for how to work with Jameson (simple steps, facts not opinions,
 never commit secrets, English).
 
@@ -24,7 +24,8 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - **Supabase project:** `life- ledger` (`vwgckbpdtqwkxnogbjtq`), org on the **Pro** plan.
 - **Jobs** (`supabase/jobs.sql`, pg_cron, times UTC): `universe` 22:15 weekdays (1 call: the full list +
   closes), `fundamentals` every 2 min (25 stocks × 12 calls, `scr_run('fundamentals','&limit=25')`; refreshes anything older than 7 days),
-  `backfill` every 3 min offset 1 (price history for new listings), `score` hourly at :50 (no FMP calls).
+  `backfill` every 3 min offset 1 (price history for new listings), `score` hourly at :50 (no FMP calls),
+  `history` odd minutes (8 stocks, 60 calls/min) and `replay` every 5 min (see `supabase/jobs.sql` for the full-reload recipe).
   Each run is logged in `scr_runs`. Start one by hand: `select public.scr_run('score');`
 - **SEC filing reader (pillar 6):** reads 424B/S-1 covers to tell bond issues from stock sales,
   converts and ATMs. SEC blocks requests without a real contact email in the User-Agent, so it only runs
@@ -53,7 +54,7 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - `shared/valuation.js` – fair value range (DCF, own 5-yr P/E, mandate PEG-2 P/E, analyst target; median = middle),
   downside reference levels, entry status (fail / incomplete / extended / wait / zone / zone-confirmed / below)
   and the Fibonacci buy ladder. Confirmation = close above 20-day avg AND RSI > 30; zone = within 3% of a level.
-- `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (62 terms, beginner level, in 11 sections ordered as a learning path; each entry: simple, like, example, rule, watch, where). `<Term id>` / `<Info id>` link
+- `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (67 terms, beginner level, in 11 sections ordered as a learning path; each entry: simple, like, example, rule, watch, where). `<Term id>` / `<Info id>` link
   any label to `/learn#id`; add a glossary entry for every new number shown on the site.
 - `src/lib/assessment.js` – strengths/weaknesses lines, each a figure vs a fixed threshold.
 - `scripts/calibrate.mjs` – pulls live FMP data for given tickers and prints the verdicts
@@ -84,17 +85,23 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - Forward P/E = latest close ÷ next-12-month consensus EPS (time-weighted FY1/FY2).
 - PEG = forward P/E ÷ expected EPS growth (annualised consensus FY0 → FY2).
 - Value signal = trailing P/E ≥20% below its own 5-yr average (Starter has no forward-P/E history).
-- Moat v3 (1–10, see header of `shared/crossSection.js`) = return on operating capital 5-yr median (0–3)
-  + durability, second-worst year (0–2) + consistency, years >15% (0–1) + pricing power, gross margin vs
-  industry median (0–2) + operating margin premium over industry median (0–2) − erosion (margins/returns
-  falling, up to −2) − loss years (−1 each in last 3, −0.5 in years 4–5). Banks/insurers/REITs: no score.
-  Calibrated with `scripts/moat-eval.mjs` (Morningstar wide-moat list vs no-moat industries): ~94% of 7+
-  scores are wide-moat names; blind spots are slumping brands, SBC-heavy software, low-margin defense.
-  v2 gave DXCM 9 (no pricing-power or erosion check). Calculated scores are capped at 8 (Jameson's scale:
-  9–10 only for near-irreplaceable positions like ASML, set by him as overrides). Gross margin ≥99.5% = no cost
-  of revenue reported (Mastercard) → scored as industry level. Operating capital = total assets − cash/investments − goodwill/intangibles − non-debt current liabilities,
-  floored at 10% of tangible operating assets. Fewer than 4 years of financials → no score (owner sets it).
-  History: v1 used tangible equity capital, which gave cash-rich PLTR-type companies capped ±100% returns.
+- Moat v4 (calculated 1–8, `shared/crossSection.js`): uses up to 10 annual reports (from `scr_history.fy`, the backtest
+  download; falls back to the 5 years in metrics) with **stock-based pay added back** to operating profit (`moatInputs`).
+  Parts: return on operating capital, median (0–3) + durability, weakest year after setting aside one bad year per five
+  (0–2) + consistency, share of years >15% (≥90% = 1, ≥70% = 0.5) + pricing power, gross margin vs industry median (0–2)
+  + operating margin premium over industry median (0–2) − erosion (3 oldest vs 3 newest years when 6+; up to −2)
+  − loss years (−1 each in last 3, older −0.5 each, max −1). Banks/insurers/REITs and <4 years of data: no score.
+  Capped at 8 (Jameson's scale: 9–10 only for near-irreplaceable positions like ASML). Gross margin ≥99.5% = no cost
+  of revenue reported (Mastercard) → industry level. Operating capital = total assets − cash/investments −
+  goodwill/intangibles − non-debt current liabilities, floored at 10% of tangible operating assets.
+  Calibration (`scripts/moat-eval.mjs`, Morningstar wide-moat list vs no-moat industries): 7+ catches 37/56 wide-moat
+  names (v3: 30) and 1/29 no-moat names. Known misses: merger accounting (LIN 2018 → 4–5), turnaround years (GEV).
+- **Written moat assessment** (`scr_moat_review`, source of truth `data/moat-reviews.json`, SQL via
+  `node scripts/load-moat-reviews.mjs`): Claude rates 1–9 in chat on Morningstar's five sources (brand/patents,
+  switching costs, network effect, cost advantage, efficient scale; each 0–2) with a one-line reason.
+  Site moat = override ?? blendMoat(calc, review) = round(0.6 × review + 0.4 × calc), capped at 9; review alone when
+  there's no calculated score. Rated so far: holdings + watchlist (34, 2026-11-13); next: the largest ~300 companies.
+  The backtest uses only the calculated score (written reviews are today's judgement).
 - Fibonacci = 52-week high and the lowest close in the 52 weeks before it; if price breaks below
   that low, the swing low widens to the lowest close in ~2 years of stored history. Levels include 100%.
 

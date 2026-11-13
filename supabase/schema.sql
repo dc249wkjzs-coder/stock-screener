@@ -143,3 +143,15 @@ create table if not exists public.scr_presets (
 );
 alter table public.scr_presets enable row level security;
 create policy "own presets" on public.scr_presets for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Written moat assessments (Morningstar's five sources), blended with the calculated score on the site.
+create table if not exists public.scr_moat_review (
+  symbol text primary key,
+  rating smallint not null check (rating between 1 and 10),
+  sources jsonb not null,
+  why text not null,
+  rated_at timestamptz not null default now(),
+  rated_by text not null default 'Claude (in chat)'
+);
+alter table public.scr_moat_review enable row level security;
+create policy "read moat reviews" on public.scr_moat_review for select to authenticated using (true);

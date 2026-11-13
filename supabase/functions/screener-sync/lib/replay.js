@@ -9,8 +9,7 @@
 // Approximations (shown on the backtest page): forward P/E → P/E on the last annual EPS; expected EPS growth →
 // actual EPS growth over the previous two fiscal years; "no recent share sales" → share count grew under 3%
 // in the last fiscal year; beta from 2 years of weekly returns vs SPY; foreign reporters use today's currency rate.
-import { roicOf } from './metrics.js';
-import { moatScore } from './crossSection.js';
+import { moatScore, moatInputs } from './crossSection.js';
 
 export const QUARTERS = 20;          // five years of quarterly rebalances
 export const STEP_WEEKS = 13;
@@ -18,7 +17,7 @@ export const FILING_LAG_DAYS = 90;   // used when FMP gives no filing date
 
 const INC = ['date', 'filingDate', 'reportedCurrency', 'revenue', 'grossProfit', 'operatingIncome', 'ebit', 'ebitda', 'incomeBeforeTax', 'incomeTaxExpense', 'netIncome', 'epsDiluted', 'weightedAverageShsOutDil'];
 const BAL = ['totalAssets', 'cashAndShortTermInvestments', 'cashAndCashEquivalents', 'longTermInvestments', 'goodwillAndIntangibleAssets', 'totalCurrentLiabilities', 'shortTermDebt', 'totalDebt'];
-const CF = ['freeCashFlow', 'commonDividendsPaid', 'netDividendsPaid'];
+const CF = ['freeCashFlow', 'commonDividendsPaid', 'netDividendsPaid', 'stockBasedCompensation'];
 const pick = (row, keys) => Object.fromEntries(keys.filter((k) => row?.[k] != null).map((k) => [k, row[k]]));
 
 // One merged row per fiscal year, newest first. Balance and cash-flow rows are matched on the fiscal year end.
@@ -108,9 +107,6 @@ export function stockSnapshots(h, bench, dates, now) {
     let peak = -Infinity, worst = 0;
     for (const c of h.close.slice(Math.max(0, i - 104), i + 1)) { peak = Math.max(peak, c); worst = Math.min(worst, c / peak - 1); }
     const div = Math.abs(L.commonDividendsPaid ?? L.netDividendsPaid ?? 0);
-    const five = avail.slice(0, 5);
-    const roicYears = five.map((r) => roicOf(r, r)).filter((x) => x != null);
-    const sortedRoic = [...roicYears].sort((a, b) => a - b);
     out[d] = {
       price, tr: h.tr[i] ?? null, marketCap, beta: betaAt(h, bench, d),
       forwardPE: pe, peTtm: pe, epsGrowth: growth, peg: pe != null && growth > 0 ? pe / (growth * 100) : null,
@@ -123,17 +119,13 @@ export function stockSnapshots(h, bench, dates, now) {
       fcfYield: L.freeCashFlow != null && price > 0 ? perShareUsd(L.freeCashFlow) / price : null,
       dividendYield: price > 0 ? (perShareUsd(div) || 0) / price : null,
       offHigh: hi52 > 0 ? price / hi52 - 1 : null, pullbackMax: worst,
-      // moat inputs (score added in pass 2, which needs every stock's margins at this date)
-      mi: {
-        roicYears, roicMedian: sortedRoic.length ? sortedRoic[Math.floor((sortedRoic.length - 1) / 2)] : null,
-        incomeYears: five.length, lossYears: five.filter((r) => (r.operatingIncome ?? r.ebit) < 0).length,
-        grossMarginYears: five.map((r) => (r.revenue > 0 && r.grossProfit != null ? r.grossProfit / r.revenue : null)).filter((x) => x != null),
-        opMarginYears: five.map((r) => (r.revenue > 0 ? (r.operatingIncome ?? r.ebit) / r.revenue : null)).filter((x) => x != null),
-      },
+      // moat inputs: up to 10 years of reports public by then (score added in pass 2, which needs every
+      // stock's margins at this date for the industry comparison)
+      mi: moatInputs(avail),
       fy: L.date,
     };
     out[d].mi.grossMargin = out[d].mi.grossMarginYears[0] ?? null;
-    out[d].mi.operatingMargin = out[d].mi.opMarginYears[0] ?? null;
+    out[d].mi.operatingMargin = L.revenue > 0 ? (L.operatingIncome ?? L.ebit) / L.revenue : null;
   }
   return out;
 }

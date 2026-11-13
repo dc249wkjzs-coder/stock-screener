@@ -3,6 +3,7 @@ import { DEMO, supabase } from './supabase'
 import { DEFAULT_RULES } from '@shared/pillars.js'
 import { fairValue, entrySetup } from '@shared/valuation.js'
 import { BLANK } from '@shared/criteria.js'
+import { blendMoat } from '@shared/crossSection.js'
 
 // FMP lists one share class per company; map the other class to it (GOOGL → GOOG).
 export const ALIASES = { GOOGL: 'GOOG', 'BRK.B': 'BRK-B', 'BRK.A': 'BRK-B', 'BRK-A': 'BRK-B' }
@@ -31,7 +32,7 @@ const loadScreen = () => { try { return { ...BLANK, ...JSON.parse(localStorage.g
 const PASS = { overall: 'pass', pillars: {}, missing: [] }
 
 export function DataProvider({ children }) {
-  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], overrides: {}, ai: {}, presets: [], lastScored: null })
+  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], overrides: {}, ai: {}, reviews: {}, presets: [], lastScored: null })
   const [screen, setScreenState] = useState(loadScreen)
   const [toast, setToast] = useState(null)
   const flash = useCallback((msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200) }, [])
@@ -47,13 +48,14 @@ export function DataProvider({ children }) {
         setState({ loading: false, error: null, cards: sample.cards, ai: sample.ai || {}, pending: [], overrides: {}, presets: [], lastScored: sample.scoredAt })
         return
       }
-      const [rows, pending, overrides, ai, presets] = await Promise.all([
+      const [rows, pending, overrides, ai, presets, reviews] = await Promise.all([
         selectAll('scr_stocks', 'symbol,card,scored_at,fundamentals_at', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')),
         // Stocks in the universe whose financials haven't been downloaded and scored yet.
         selectAll('scr_stocks', 'symbol,name', (q) => q.eq('active', true).is('card', null).order('symbol')),
         selectAll('scr_overrides', 'symbol,moat,note'),
         selectAll('scr_ai', 'symbol,risk,benefit,risk_reasons,benefit_reasons,summary,rated_at,rated_by').catch(() => []),
         supabase.from('scr_presets').select('id,name,criteria').order('name').then((r) => r.data || []),
+        selectAll('scr_moat_review', 'symbol,rating,sources,why,rated_at,rated_by').catch(() => []),
       ])
       setState({
         loading: false, error: null,
@@ -62,6 +64,7 @@ export function DataProvider({ children }) {
         ai: Object.fromEntries(ai.map((a) => [a.symbol, a])),
         overrides: Object.fromEntries(overrides.map((o) => [o.symbol, o])),
         presets,
+        reviews: Object.fromEntries(reviews.map((r) => [r.symbol, r])),
         lastScored: rows.reduce((m, r) => (r.scored_at > m ? r.scored_at : m), ''),
       })
     } catch (e) {
@@ -75,9 +78,11 @@ export function DataProvider({ children }) {
     const o = state.overrides[c.symbol]
     const a = state.ai?.[c.symbol]
     const s = { ...c, moatOverride: o?.moat ?? null, ai: a || null, aiRisk: a?.risk ?? null, aiBenefit: a?.benefit ?? null }
-    s.moatUsed = s.moatOverride ?? c.moat?.score ?? null
+    s.moatReview = state.reviews?.[c.symbol] || null
+    s.moatBlend = blendMoat(c.moat?.score ?? null, s.moatReview)
+    s.moatUsed = s.moatOverride ?? s.moatBlend
     return { ...s, fair: fairValue(s, DEFAULT_RULES), setup: entrySetup(s, PASS, DEFAULT_RULES, null) }
-  }), [state.cards, state.overrides, state.ai])
+  }), [state.cards, state.overrides, state.ai, state.reviews])
 
   const bySymbol = useMemo(() => Object.fromEntries(stocks.map((s) => [s.symbol, s])), [stocks])
 

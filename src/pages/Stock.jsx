@@ -11,6 +11,7 @@ import { Panel, Badge, Empty } from '@/components/ui'
 import { fx, fp, fn, usd, cap } from '@/components/pillarUi'
 import { marginTier } from '@shared/pillars.js'
 import { checks } from '@shared/criteria.js'
+import { MOAT_SOURCES } from '@shared/crossSection.js'
 import { date as fdate } from '@/lib/format'
 
 const CHECK_TERM = { themes: null, moatMin: 'moat', debtMax: 'net-debt-ebitda', pe: 'forward-pe', pegMax: 'peg', growthMin: 'eps-growth', marginMin: 'ebitda-margin', profitable: 'gaap-adjusted', noDilution: 'financing', capMin: 'market-cap', betaMax: 'beta', aiRiskMax: 'ai-risk', entry: 'buy-zone' }
@@ -150,7 +151,25 @@ function MoatPanel({ s }) {
   const [note, setNote] = useState(o?.note ?? '')
   const parts = s.moatParts || []
   return (
-    <Panel title={`Moat ${s.moatUsed ?? '—'}/10`} subtitle={o ? `Your override (calculated: ${s.moat?.score ?? 'none'}).` : s.moat?.score == null ? (s.moat?.reason || 'No calculated score.') : 'Calculated from 5 years of FMP data.'}>
+    <Panel title={`Moat ${s.moatUsed ?? '—'}/10`} subtitle={o ? `Your own score. Otherwise it would be ${s.moatBlend ?? 'none'}.`
+      : s.moatReview ? `${s.moatReview.rating}/10 business assessment (60%) + ${s.moat?.score ?? 'no'} from the numbers (40%).`
+      : s.moat?.score == null ? (s.moat?.reason || 'No calculated score.') : 'From up to 10 years of annual reports. No written assessment yet.'}>
+      {s.moatReview && (
+        <div className="mb-4 pb-4 border-b border-line">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-[12.5px] font-semibold"><Term id="moat-sources">Business assessment</Term> · {s.moatReview.rating}/10</div>
+            <div className="text-[11.5px] text-faint">{s.moatReview.rated_by}, {fdate(s.moatReview.rated_at)}</div>
+          </div>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {MOAT_SOURCES.map(([k, label]) => {
+              const v = s.moatReview.sources?.[k] ?? 0
+              return <span key={k} className={`rounded-md px-2 py-0.5 text-[12px] font-semibold ${v === 2 ? 'bg-gain-soft text-gain' : v === 1 ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-faint'}`}>{label}: {['none', 'some', 'strong'][v]}</span>
+            })}
+          </div>
+          <p className="text-[13px] mt-2 leading-relaxed">{s.moatReview.why}</p>
+        </div>
+      )}
+      {parts.length > 0 && <div className="text-[12.5px] font-semibold mb-1">From the numbers · {s.moat?.score}/8</div>}
       <table className="w-full text-[13px]">
         <tbody>
           {parts.map((p) => (
@@ -171,7 +190,7 @@ function MoatPanel({ s }) {
           <input className="input flex-1 min-w-40" placeholder="Why (e.g. choke point in…)" value={note} onChange={(e) => setNote(e.target.value)} />
           <button className="btn btn-primary" onClick={() => d.saveOverride(s.symbol, val === '' ? null : Number(val), note)}>Save</button>
         </div>
-        <div className="text-[12px] text-faint">The calculation measures the results of a moat (returns and margins), so it can miss a true choke point or over-rate a few strong years. It stops at 8: a 9 or 10 (a near-irreplaceable position) is yours to set.</div>
+        <div className="text-[12px] text-faint">The numbers measure the results of a moat (returns and margins) and stop at 8; the written assessment judges where the advantage comes from. Combined scores stop at 9: a 10 is yours to set.</div>
       </div>
     </Panel>
   )

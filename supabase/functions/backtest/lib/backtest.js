@@ -14,7 +14,7 @@ export function replayable(c) {
   if (C.peMin != null || C.peMax != null || C.pegMax != null) notes.push('P/E and PEG use the last annual EPS reported by then (analyst forecasts from the past aren\'t available).');
   if (C.growthMin != null || C.pegMax != null) notes.push('Earnings growth uses actual EPS growth over the two previous fiscal years instead of analyst forecasts.');
   if (C.noDilution) notes.push('"No recent share sales" counts a company as diluting if its share count rose more than 3% in its last fiscal year.');
-  if (C.moatMin != null) notes.push('Moat uses the calculated score at each date; your own moat scores aren\'t applied to the past.');
+  if (C.moatMin != null) notes.push('Moat uses the score calculated from the reports public at each date; written assessments and your own scores are today\'s judgements, so they aren\'t applied to the past.');
   if (C.profitable) notes.push('"Profitable" uses the last annual report at each date.');
   return { criteria: { ...C, aiRiskMax: null, entry: C.entry === 'off20' ? 'off20' : 'any' }, notes };
 }
