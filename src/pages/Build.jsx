@@ -38,7 +38,7 @@ export default function Build() {
     <div className="grid gap-6 lg:grid-cols-[1fr_320px] items-start pb-24 lg:pb-0">
       <div className="grid gap-6 min-w-0">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Build your screen</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Stock finder</h1>
           <p className="text-muted text-[14px] mt-1 max-w-2xl">Pick what matters to you in each box, or start from a preset. The risk meter reads the stocks that match as you go. Then press Continue to see them.</p>
         </div>
 

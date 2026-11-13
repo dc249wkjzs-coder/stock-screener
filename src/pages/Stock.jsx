@@ -229,7 +229,7 @@ function ScreenPanel({ checks, fits }) {
             </li>
           ))}
         </ul>
-      ) : <p className="text-[13.5px] text-muted">Pick what matters to you on <Link to="/" className="text-accent">Build your screen</Link>, and this panel shows how {`this stock`} measures up, box by box.</p>}
+      ) : <p className="text-[13.5px] text-muted">Pick what matters to you in the <Link to="/" className="text-accent">Stock finder</Link>, and this panel shows how {`this stock`} measures up, box by box.</p>}
     </Panel>
   )
 }

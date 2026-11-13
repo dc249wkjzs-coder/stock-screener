@@ -5,7 +5,7 @@ import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
 
 export const NAV = [
-  { to: '/', label: 'Build your screen', icon: SlidersHorizontal },
+  { to: '/', label: 'Stock finder', icon: SlidersHorizontal },
   { to: '/results', label: 'Results', icon: List },
   { to: '/lookup', label: 'Look up a stock', icon: Search },
   { to: '/learn', label: 'Definitions', icon: BookOpen },

@@ -28,7 +28,7 @@ export default function Results() {
     <div className="grid gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link to="/" className="text-[13px] text-muted hover:text-fg inline-flex items-center gap-1 mb-2"><ArrowLeft size={14} /> Build your screen</Link>
+          <Link to="/" className="text-[13px] text-muted hover:text-fg inline-flex items-center gap-1 mb-2"><ArrowLeft size={14} /> Stock finder</Link>
           <h1 className="text-2xl font-semibold tracking-tight">{rows.length} matching stocks</h1>
           <div className="text-[13px] text-muted mt-1">{summary.length ? `Screened on: ${summary.map((l) => (l === 'Industry' ? themes.join(', ') : l)).join(' · ')}` : 'No boxes set: every stock is shown.'}</div>
         </div>

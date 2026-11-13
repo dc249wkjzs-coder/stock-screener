@@ -492,7 +492,7 @@ export const TERMS = {
     example: 'Fast growth with no other limits might pick wild, money-losing, expensive stocks → High or Very high. Strong moat, low debt and low beta → Lower.',
     rule: 'It looks at six things in the matching stocks: how much they swing (beta), how many lose money, how much debt they have, how expensive they are, how far they\'ve fallen before, and how strong their moats are. It also warns when fewer than 8 stocks match.',
     watch: 'Based on the past, so it\'s a guide, not a promise.',
-    where: 'Build your screen (updates as you click) and Results.',
+    where: 'Stock finder (updates as you click) and Results.',
   },
 
   // ---------- 10 · Company filings
@@ -548,11 +548,11 @@ export const TERMS = {
   // ---------- 11 · Using this site
   presets: {
     term: 'Presets',
-    simple: 'A saved set of choices for all the boxes on Build your screen.',
+    simple: 'A saved set of choices for all the boxes in the Stock finder.',
     like: 'Saved settings on a coffee machine: one tap and it\'s set up how you like it.',
     example: '"Quality compounder" = moat 7+, PEG up to 2, earnings growth 10%+, debt up to 3x, profitable, no recent share sales.',
     rule: 'Use the built-in ones to learn different styles; save your own once you know what you like.',
-    where: 'Build your screen: set the boxes, type a name, press Save. Yours have a star and are saved to your account.',
+    where: 'Stock finder: set the boxes, type a name, press Save. Yours have a star and are saved to your account.',
   },
 }
 

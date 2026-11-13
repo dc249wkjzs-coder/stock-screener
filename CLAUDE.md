@@ -1,7 +1,7 @@
 # Stock screener: handover notes
 
 Jameson's stock screener, redesigned 2026-11-13 as a generic "choose your own" screener (no personal data on it):
-**Build your screen** (`/`, category boxes + presets + live risk meter) → **Results** (`/results?…`, bookmarkable) →
+**Stock finder** (`/`, category boxes + presets + live risk meter) → **Results** (`/results?…`, bookmarkable) →
 stock page; **Look up a stock** (`/lookup`) library search; Definitions; Data status. Covers every US-listed stock
 above $500M (US companies plus foreign companies on NYSE/Nasdaq such as ASML, TSM). Private: behind a Supabase login.
 **Licensing:** FMP Starter is personal use only; FMP says showing its data to anyone else (free or not) needs a Data
