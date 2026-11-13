@@ -100,7 +100,7 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   `node scripts/load-moat-reviews.mjs`): Claude rates 1–9 in chat on Morningstar's five sources (brand/patents,
   switching costs, network effect, cost advantage, efficient scale; each 0–2) with a one-line reason.
   Site moat = override ?? blendMoat(calc, review) = round(0.6 × review + 0.4 × calc), capped at 9; review alone when
-  there's no calculated score. Rated so far: holdings + watchlist (34, 2026-11-13); next: the largest ~300 companies.
+  there's no calculated score. Rated so far: holdings + watchlist + the 300 largest companies (333, 2026-11-13; VYLR skipped, unknown). Others on request.
   The backtest uses only the calculated score (written reviews are today's judgement).
 - Fibonacci = 52-week high and the lowest close in the 52 weeks before it; if price breaks below
   that low, the swing low widens to the lowest close in ~2 years of stored history. Levels include 100%.
