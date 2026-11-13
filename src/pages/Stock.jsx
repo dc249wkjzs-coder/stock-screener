@@ -62,10 +62,7 @@ export default function Stock() {
 
       <PlanPanel s={s} />
 
-      <div className="grid gap-5 xl:grid-cols-2 items-start">
-        <CompanyPanel s={s} metrics={m} />
-        <NewsPanel s={s} />
-      </div>
+      <CompanyPanel s={s} metrics={m} />
 
       <AiPanel s={s} />
 
@@ -128,6 +125,7 @@ export default function Stock() {
           </ul>
         ) : <div className="text-muted text-[13.5px]">{m ? 'No offering or shelf filings.' : 'Loading…'}</div>}
       </Panel>
+      <NewsPanel s={s} />
       <p className="text-[12.5px] text-faint">Data from Financial Modeling Prep; fundamentals refreshed {s.fundamentalsAt ? fdate(s.fundamentalsAt) : 'n/a'}. Not investment advice.</p>
     </div>
   )
