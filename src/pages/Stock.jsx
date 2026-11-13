@@ -205,7 +205,7 @@ function FibPanel({ s, prices }) {
   return (
     <Panel title="Chart, moving averages and Fibonacci entry levels"
       subtitle={f ? `Swing low ${usd(lo)} on ${fdate(f.swingLow.date)} → swing high ${usd(hi)} on ${fdate(f.swingHigh.date)}, daily closes. The highlighted dashed line is the next support below the price.` : 'Not enough price history yet for Fibonacci levels.'}>
-      <PriceChart prices={prices} fib={f} />
+      <PriceChart prices={prices} fib={f} symbol={s.symbol} />
       {f && (
         <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr] mt-5 pt-4 border-t border-line">
           <table className="w-full text-[13px]">
