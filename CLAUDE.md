@@ -151,3 +151,16 @@ Vercel project `stock-screener` from this repo, env vars `VITE_SUPABASE_URL` and
 (same values as Life Ledger). Without them the site runs in demo mode with `public/sample.json`.
 Add the screener's Vercel URL to Supabase → Authentication → URL Configuration → Redirect URLs so
 password-reset emails work there too.
+
+## Pending (2026-11-13): moat v5 on branch `moat-v5`, not yet on main
+Code is finished and tested on branch `moat-v5` (rebased on main). Still to do, in order (needs the Supabase connector):
+1. Apply the DB part: the "Moat v5" tail of `supabase/schema.sql` (durability/invalidation columns, rating 1–9 check,
+   `scr_moat_flags`, `scr_config`), then the review updates and flags (`node scripts/load-moat-reviews.mjs`,
+   `node scripts/load-moat-flags.mjs`; MRNA 3, MRK 5, BMY 4, PFE 4 re-rated).
+2. Redeploy `screener-sync` with all files (index.ts + lib fmp, metrics, crossSection, indicators, card, replay), run
+   `select public.scr_run('score')`, read `detail.moat` (distribution) in `scr_runs`.
+3. Validation (Jameson's spec, do not ship if any fails): final ≥7 for ASML, TSM, V, MCO, SPGI, MSFT; final ≤5 for HLF, IRWD,
+   VIRT, ATEN, TPR, SBC; calculated 8s = 5–10% of scored stocks (tune `scr_config` key 'moat', e.g. {"roic":[0.08,0.5]}).
+4. Merge `moat-v5` into main and push (the site reads the new columns, so only after step 1).
+Also open from earlier: verify the rules backtest after the history re-download (`scr_history_todo` empty, replay passes),
+and test whether moat buckets predicted returns.
