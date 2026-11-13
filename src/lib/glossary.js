@@ -353,8 +353,8 @@ export const TERMS = {
     simple: 'Four different estimates of what one share is really worth, shown side by side.',
     like: 'Asking four estate agents to value your house: you get a range, and the middle is a sensible guess.',
     example: 'Estimates of $120, $140, $150 and $160 → range $120–$160, middle $145. If the price is $116, it\'s 20% below the middle.',
-    rule: 'Price below the middle = possibly cheap. Above it = possibly expensive.',
-    watch: 'Estimates, not promises. When the four disagree a lot, be extra careful.',
+    rule: 'Price below the middle = possibly cheap. Above it = possibly expensive. The site only gives that reading when at least two estimates are usable and they roughly agree (highest minus lowest no more than 80% of the middle). Estimates are left out when they can\'t be trusted: a 5-year average P/E above 40, growth above 100% (it starts from a weak year; growth used is capped at 25%), a negative DCF, or one estimate more than 3x away from the others.',
+    watch: 'Estimates, not promises. "Estimates disagree" means the business is hard to value (fast growth, a turnaround, a big change): no middle is shown as a verdict. Tested on about 1,700 US stocks, 2019–2025 (only the two P/E-based estimates can be replayed): stocks 30%+ below the middle beat the typical stock over the next 12 months 52% of the time, stocks 30%+ above it 45% of the time. A mild tilt, not a reliable signal, and prices did not reliably move towards the middle.',
     where: 'Each stock page and the "vs fair" column in Results.',
   },
   dcf: {

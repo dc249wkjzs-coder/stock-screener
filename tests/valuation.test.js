@@ -58,3 +58,15 @@ test('Pullbacks: deepest and typical drop from a running high', () => {
   assert.equal(r.max.toFixed(2), '-0.40')
   assert.equal(r.median.toFixed(2), '-0.10')
 })
+
+import { fairValue as fv2 } from '../shared/valuation.js';
+test('fair value: sanity rules and agreement (IRWD, NVDA, KO from live data 2026-11-13)', () => {
+  const irwd = fv2({ price: 4.85, dcf: 5.78, pe5yAvg: 210.6, ntmEps: 1.304, epsGrowth: 2.36, targetConsensus: 6.68 });
+  assert.deepEqual(irwd.methods.map((m) => m.key).sort(), ['analyst', 'dcf']);
+  assert.equal(irwd.agreement, 'tight'); assert.ok(irwd.vsMid > -0.3 && irwd.vsMid < 0);
+  const nvda = fv2({ price: 166, dcf: 232, pe5yAvg: 59.7, ntmEps: 14.45, epsGrowth: 0.835, targetConsensus: 337 });
+  assert.ok(nvda.skipped.some((m) => m.key === 'histPE'));
+  assert.equal(nvda.agreement, 'wide'); assert.equal(nvda.vsMid, null);
+  const ko = fv2({ price: 97.4, dcf: 81, pe5yAvg: 25.4, ntmEps: 3.5, epsGrowth: 0.086, targetConsensus: 98 });
+  assert.equal(ko.methods.length, 4); assert.ok(ko.vsMid != null);
+});

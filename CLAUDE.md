@@ -58,7 +58,15 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   (Jameson's "My mandate" = moat 7+, PEG ≤2, EPS growth 10%+, debt ≤3x, profitable, no recent share sales).
   Moat overrides per user: `scr_overrides`. No Life Ledger positions are read any more. `shared/pillars.js`
   (`evaluate`, the old 8-pillar verdict) is no longer used by the site; DEFAULT_RULES still feeds valuation.js.
-- `shared/valuation.js` – fair value range (DCF, own 5-yr P/E, mandate PEG-2 P/E, analyst target; median = middle),
+- `shared/valuation.js` – fair value range (DCF, own 5-yr P/E, PEG-2 P/E, analyst target; median = middle). Since 2026-11-13:
+  FAIR rules skip own 5-yr P/E > 40, cap growth at 25% and skip growth > 100%, drop negative DCF and any estimate 3x away
+  from the others; `agreement` tight/moderate/wide/single from (high−low)/mid (≤40%/≤80%); `vsMid` is null (no verdict)
+  unless ≥2 estimates and spread ≤80% (`gap` always holds price vs middle). Tested with Edge Function `fairtest`
+  (supabase/functions/fairtest, one-off, x-job-token; run via net.http_post): 1,702 US stocks, 26 quarterly dates 2019-08 to
+  2025-11, P/E methods only. New rules, verdicts only (7,726 readings): 30%+ below middle → median 12m return 15.3%, beat
+  same-date median 52%; 30%+ above → 5.3%, 45%. Old rules: 14.9%/52% vs 8.3%/48%. Median miss 30% (old 45%); price moved
+  closer to the middle within a year only ~48% of the time.
+  Also
   downside reference levels, entry status (fail / incomplete / extended / wait / zone / zone-confirmed / below)
   and the Fibonacci buy ladder. Confirmation = close above 20-day avg AND RSI > 30; zone = within 3% of a level.
 - `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (71 terms, beginner level, in 11 sections ordered as a learning path; each entry: simple, like, example, rule, watch, where). `<Term id>` / `<Info id>` link

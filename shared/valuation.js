@@ -5,32 +5,66 @@ import { DEFAULT_RULES } from './pillars.js';
 const ok = (v) => v != null && Number.isFinite(v) && v > 0;
 const median = (xs) => { const v = [...xs].sort((a, b) => a - b); const m = Math.floor(v.length / 2); return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
 
-// Up to four independent estimates of what the stock is worth per share.
+// Up to four independent estimates of what the stock is worth per share, with sanity rules, plus how much they agree.
+// A verdict (vsMid: price vs the middle) is only given when at least two estimates remain and they roughly agree.
+export const FAIR = {
+  histPEMax: 40,        // an own 5-year average P/E above this comes from hype years or tiny earnings: method skipped
+  growthCap: 0.25,      // growth used for the PEG-based P/E is capped at 25% (so P/E at most 2 × 25 = 50)
+  growthSkip: 1.0,      // expected growth above 100% is measured from a depressed year: method skipped
+  outlier: 3,           // an estimate more than 3x (or under 1/3 of) the median of the others is dropped
+  tight: 0.4,           // (high − low) ÷ middle up to 40% = estimates agree
+  moderate: 0.8,        //                     up to 80% = roughly agree; above = disagree, no verdict
+};
+const x1 = (v) => `${v.toFixed(1)}x`;
+const pct0 = (v) => `${Math.round(v * 100)}%`;
+
 export function fairValue(s, rules = DEFAULT_RULES) {
   const R = { ...DEFAULT_RULES, ...rules };
-  const methods = [];
-  if (ok(s.dcf)) methods.push({ key: 'dcf', label: 'Discounted cash flow (FMP)', value: s.dcf, how: 'FMP\'s DCF model' });
+  const methods = [], skipped = [];
+  if (s.dcf != null && Number.isFinite(s.dcf)) {
+    if (ok(s.dcf)) methods.push({ key: 'dcf', label: 'Discounted cash flow (FMP)', value: s.dcf, how: 'FMP\'s DCF model' });
+    else skipped.push({ key: 'dcf', label: 'Discounted cash flow (FMP)', why: 'the model gives a negative value' });
+  }
   if (ok(s.ntmEps) && ok(s.pe5yAvg)) {
-    methods.push({ key: 'histPE', label: 'Own 5-year average P/E', value: s.ntmEps * s.pe5yAvg,
-      how: `next-12-month EPS $${s.ntmEps.toFixed(2)} × ${s.pe5yAvg.toFixed(1)}x` });
+    if (s.pe5yAvg > FAIR.histPEMax) skipped.push({ key: 'histPE', label: 'Own 5-year average P/E', why: `its 5-year average P/E of ${x1(s.pe5yAvg)} comes from years of hype or very small earnings, so it isn't a sensible yardstick` });
+    else methods.push({ key: 'histPE', label: 'Own 5-year average P/E', value: s.ntmEps * s.pe5yAvg, how: `next-12-month EPS $${s.ntmEps.toFixed(2)} × ${x1(s.pe5yAvg)}` });
   }
   if (ok(s.ntmEps) && ok(s.epsGrowth)) {
-    // The highest P/E the value pillar passes outright: PEG at the pass line × growth in %, capped.
-    const pe = Math.min(R.pegPass * s.epsGrowth * 100, R.fairPECap);
-    methods.push({ key: 'pegPE', label: `P/E at PEG ${R.pegPass} for its growth`, value: s.ntmEps * pe,
-      how: `$${s.ntmEps.toFixed(2)} × ${pe.toFixed(1)}x (${R.pegPass} × ${(s.epsGrowth * 100).toFixed(1)}% growth${pe === R.fairPECap ? ', capped' : ''})` });
+    if (s.epsGrowth > FAIR.growthSkip) skipped.push({ key: 'pegPE', label: `P/E at PEG ${R.pegPass} for its growth`, why: `expected growth of ${pct0(s.epsGrowth)} is measured from a weak year and won't last` });
+    else {
+      const g = Math.min(s.epsGrowth, FAIR.growthCap);
+      const pe = R.pegPass * g * 100;
+      methods.push({ key: 'pegPE', label: `P/E at PEG ${R.pegPass} for its growth`, value: s.ntmEps * pe,
+        how: `$${s.ntmEps.toFixed(2)} × ${x1(pe)} (${R.pegPass} × ${(g * 100).toFixed(1)}% growth${g < s.epsGrowth ? `, capped from ${pct0(s.epsGrowth)}` : ''})` });
+    }
   }
   if (ok(s.targetConsensus)) {
     methods.push({ key: 'analyst', label: 'Analysts\' 12-month target', value: s.targetConsensus,
       how: ok(s.targetLow) && ok(s.targetHigh) ? `consensus; range $${s.targetLow.toFixed(0)}–$${s.targetHigh.toFixed(0)}` : 'consensus' });
   }
-  if (!methods.length) return null;
+  // Drop an estimate that is wildly away from the rest (needs at least 3 to judge).
+  if (methods.length >= 3) {
+    for (const m of [...methods]) {
+      const others = methods.filter((o) => o !== m).map((o) => o.value);
+      const med = median(others);
+      if (m.value > med * FAIR.outlier || m.value < med / FAIR.outlier) {
+        methods.splice(methods.indexOf(m), 1);
+        skipped.push({ key: m.key, label: m.label, why: `$${m.value.toFixed(2)} is more than ${FAIR.outlier}x away from the other estimates` });
+      }
+    }
+  }
+  if (!methods.length) return skipped.length ? { methods, skipped, low: null, mid: null, high: null, vsMid: null, upsideToMid: null, agreement: 'none', spread: null } : null;
   const vals = methods.map((m) => m.value);
-  const mid = median(vals);
+  const mid = median(vals), low = Math.min(...vals), high = Math.max(...vals);
+  const spread = (high - low) / mid;
+  const agreement = methods.length < 2 ? 'single' : spread <= FAIR.tight ? 'tight' : spread <= FAIR.moderate ? 'moderate' : 'wide';
+  const verdict = agreement === 'tight' || agreement === 'moderate';
+  const gap = s.price ? s.price / mid - 1 : null;
   return {
-    methods, low: Math.min(...vals), mid, high: Math.max(...vals),
-    vsMid: s.price ? s.price / mid - 1 : null,               // −0.18 = price is 18% below the middle
-    upsideToMid: s.price ? mid / s.price - 1 : null,
+    methods, skipped, low, mid, high, spread, agreement,
+    gap,                                                    // price vs the middle, always (for display)
+    vsMid: verdict ? gap : null,                            // −0.18 = 18% below the middle; null when the estimates don't agree
+    upsideToMid: verdict && s.price ? mid / s.price - 1 : null,
   };
 }
 

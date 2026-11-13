@@ -35,12 +35,15 @@ export default function PlanPanel({ s, guide = null }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <div>
           <div className="label mb-2"><Term id="fair-value">Fair value</Term></div>
-          {fair ? (
+          {fair && fair.mid != null ? (
             <>
+              <div className="mb-2"><AgreeBadge fair={fair} /></div>
               <RangeBar low={fair.low} mid={fair.mid} high={fair.high} price={s.price} />
               <div className="text-[13.5px] mt-3">
-                Range {usd(fair.low)} – {usd(fair.high)}, middle <b>{usd(fair.mid)}</b>.
-                The price is <b className={fair.vsMid < 0 ? 'text-gain' : 'text-loss'}>{fp(Math.abs(fair.vsMid), 0)} {fair.vsMid < 0 ? 'below' : 'above'}</b> the middle.
+                Range {usd(fair.low)} – {usd(fair.high)}, middle <b>{usd(fair.mid)}</b>.{' '}
+                {fair.vsMid != null
+                  ? <>The price is <b className={fair.vsMid < 0 ? 'text-gain' : 'text-loss'}>{fp(Math.abs(fair.vsMid), 0)} {fair.vsMid < 0 ? 'below' : 'above'}</b> the middle.</>
+                  : <span className="text-muted">{fair.agreement === 'single' ? 'Only one estimate is usable, so there is no reliable middle to compare the price with.' : 'The estimates disagree too much to say whether the price is cheap or expensive.'}</span>}
               </div>
               <table className="w-full text-[12.5px] mt-3">
                 <tbody>
@@ -51,10 +54,15 @@ export default function PlanPanel({ s, guide = null }) {
                       <td className={`py-1.5 num text-right align-top pl-2 ${m.value > s.price ? 'text-gain' : 'text-loss'}`}>{fp(m.value / s.price - 1, 0)}</td>
                     </tr>
                   ))}
+                  {fair.skipped.map((m) => (
+                    <tr key={`x-${m.key}`} className="border-t border-line/60 text-faint">
+                      <td className="py-1.5 pr-2" colSpan={3}><span className="line-through">{m.label}</span> · left out: {m.why}.</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </>
-          ) : <div className="text-muted text-[13px]">Not enough data for a fair value (needs earnings estimates, a DCF or analyst targets).</div>}
+          ) : <div className="text-muted text-[13px]">Not enough usable data for a fair value (needs earnings estimates, a DCF or analyst targets).{fair?.skipped?.length ? ` Left out: ${fair.skipped.map((m) => `${m.label} (${m.why})`).join('; ')}.` : ''}</div>}
         </div>
 
         <div>
@@ -75,7 +83,7 @@ export default function PlanPanel({ s, guide = null }) {
                 </tbody>
               </table>
               <div className="text-[12px] text-faint mt-2">
-                                Levels from the 38.2% retracement down to the swing low.{fair && st.ladder.some((l) => l.price < fair.mid) ? ` Every level shown is ${st.ladder.every((l) => l.price < fair.low) ? 'below the whole fair value range' : 'below the fair value middle'} ${usd(fair.mid)}` : ''}.
+                                Levels from the 38.2% retracement down to the swing low.{fair?.mid != null && st.ladder.some((l) => l.price < fair.mid) ? ` Every level shown is ${st.ladder.every((l) => l.price < fair.low) ? 'below the whole fair value range' : 'below the fair value middle'} ${usd(fair.mid)}` : ''}.
               </div>
             </>
           ) : <div className="text-muted text-[13px]">No Fibonacci levels at or below the price.</div>}
@@ -127,5 +135,21 @@ function RangeBar({ low, mid, high, price }) {
         <div className="text-[10.5px] num font-semibold mt-1 whitespace-nowrap">now {usd(price)}</div>
       </div>
     </div>
+  )
+}
+
+// How much the fair value estimates agree: (highest − lowest) ÷ middle.
+function AgreeBadge({ fair }) {
+  const t = {
+    tight: ['Estimates agree', 'bg-gain-soft text-gain'],
+    moderate: ['Estimates roughly agree', 'bg-surface-2 text-fg'],
+    wide: ['Estimates disagree', 'bg-warn-soft text-warn'],
+    single: ['Only one estimate', 'bg-warn-soft text-warn'],
+  }[fair.agreement]
+  if (!t) return null
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${t[1]}`} title="Spread between the highest and lowest estimate, as a share of the middle">
+      {t[0]}{fair.spread != null && fair.agreement !== 'single' ? ` · spread ${Math.round(fair.spread * 100)}%` : ''}
+    </span>
   )
 }
