@@ -136,7 +136,7 @@ const isOn = (k, c) => k === 'pe' ? c.peMin != null || c.peMax != null : k === '
 function Chip({ on, onClick, children }) {
   return (
     <button onClick={onClick} aria-pressed={on}
-      className={`rounded-md border px-2.5 py-1 text-[12.5px] font-semibold ${on ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted hover:text-fg'}`}>{children}</button>
+      className={`rounded-full border px-3 py-1 text-[12.5px] font-semibold ${on ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted hover:text-fg'}`}>{children}</button>
   )
 }
 

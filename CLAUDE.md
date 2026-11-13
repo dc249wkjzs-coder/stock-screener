@@ -6,7 +6,9 @@ stock page; **Look up a stock** (`/lookup`) library search; Definitions; Data st
 above $500M (US companies plus foreign companies on NYSE/Nasdaq such as ASML, TSM). Private: behind a Supabase login.
 **Licensing:** FMP Starter is personal use only; FMP says showing its data to anyone else (free or not) needs a Data
 Display and Licensing Agreement. Jameson knows; he doesn't want it public. Don't open sign-ups or make it public without that.
-Sister project of Life Ledger (same Supabase project and login). Last updated: 2026-11-13.
+Sister project of Life Ledger (same Supabase project and login). Look: Apple-style theme (2026-11-13): system font
+(SF on Apple devices, Inter elsewhere), #f5f5f7 canvas, white 18px-radius cards, frosted light sidebar (`.glass`), one blue
+accent (#0071e3), pill buttons; all colours are tokens in `src/index.css` (light + dark). Last updated: 2026-11-13.
 See the Life Ledger repo's CLAUDE.md for how to work with Jameson (simple steps, facts not opinions,
 never commit secrets, English).
 

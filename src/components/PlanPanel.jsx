@@ -7,7 +7,7 @@ import Term from './Term'
 const METHOD_TERM = { dcf: 'dcf', histPE: 'pe-5y', pegPE: 'mandate-pe', analyst: 'analyst-target' }
 
 const TONE = {
-  'zone-confirmed': 'border-gain/50 bg-gain-soft', zone: 'border-warn/50 bg-accent-soft', wait: 'border-line bg-surface-2',
+  'zone-confirmed': 'border-gain/50 bg-gain-soft', zone: 'border-warn/40 bg-warn-soft', wait: 'border-line bg-surface-2',
   extended: 'border-line bg-surface-2', below: 'border-loss/40 bg-loss-soft', incomplete: 'border-line bg-surface-2', fail: 'border-loss/40 bg-loss-soft',
 }
 
@@ -17,7 +17,7 @@ export default function PlanPanel({ s, guide = null }) {
   const down = downside(s)
   return (
     <Panel title="Valuation and entry plan" subtitle="Fixed rules applied to the data: a reading of the numbers, not a forecast or advice.">
-      <div className={`rounded-lg border px-4 py-3 mb-5 ${TONE[st.status]}`}>
+      <div className={`rounded-xl border px-4 py-3 mb-5 ${TONE[st.status]}`}>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted"><Term id={st.status.startsWith('zone') ? 'confirmation' : st.status === 'fail' ? 'pillars' : 'buy-zone'}>{SETUP[st.status].label}</Term></div>
         <div className="text-lg font-semibold mt-0.5">{st.title}</div>
         <div className="text-[13.5px] text-muted mt-0.5">{st.detail}</div>

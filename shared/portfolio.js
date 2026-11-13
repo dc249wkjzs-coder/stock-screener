@@ -5,7 +5,7 @@ import { riskProfile } from './criteria.js';
 
 const avg = (xs) => { const v = xs.filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
 const median = (xs) => { const v = xs.filter((x) => x != null && Number.isFinite(x)).sort((a, b) => a - b); if (!v.length) return null; const m = Math.floor(v.length / 2); return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
-const pct = (x, d = 0) => `${(x * 100).toFixed(d)}%`;
+const pct = (x, d = 0) => (x == null ? 'n/a' : `${(x * 100).toFixed(d)}%`);
 const debtOf = (s) => (s.netDebtToEbitda == null ? null : Math.max(-1, s.netDebtToEbitda));
 
 // Weights in %: the ones you set, the rest share what's left equally; then scaled to add up to 100.
@@ -102,7 +102,7 @@ export function scorePortfolio(items, universe) {
   }
   if (F.margin != null && F.marginMkt != null && F.margin >= F.marginMkt * 1.5) add(strengths, 'Quality', `High profit margins: EBITDA margin ${pct(F.margin)} vs ${pct(F.marginMkt)} market median.`);
   if (scores.growth != null) {
-    if (scores.growth >= 0.7) add(strengths, 'Growth', `Fast growers: expected EPS growth ${pct(F.eps)} a year and sales growth ${pct(F.sales)} (market medians ${pct(F.epsMkt)} and ${pct(F.salesMkt)}).`);
+    if (scores.growth >= 0.7) add(strengths, 'Growth', `Fast growers: expected EPS growth ${pct(F.eps)} a year (market median ${pct(F.epsMkt)})${F.sales != null && F.salesMkt != null ? `; sales growth ${pct(F.sales)} vs ${pct(F.salesMkt)}` : ''}.`);
     else if (scores.growth < 0.4) add(weaknesses, 'Growth', `Slow growth: expected EPS growth ${pct(F.eps)} a year vs ${pct(F.epsMkt)} market median.`);
   }
   if (scores.value != null) {

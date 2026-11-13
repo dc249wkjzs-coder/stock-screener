@@ -33,10 +33,10 @@ export default function Login({ mode: initialMode = 'signin', onDone }) {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-side px-4">
+    <div className="min-h-screen grid place-items-center bg-bg px-4">
       <form onSubmit={submit} className="card w-full max-w-sm p-6 grid gap-4">
         <div>
-          <div className="text-xl font-semibold">Screener</div>
+          <div className="text-2xl font-semibold tracking-tight">Screener</div>
           <div className="text-muted text-[13px] mt-1">
             {mode === 'signin' ? 'Sign in to continue.' : mode === 'forgot' ? 'We will email you a reset link.' : 'Choose a new password.'}
           </div>

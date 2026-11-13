@@ -90,7 +90,7 @@ export function NewsPanel({ s }) {
       {err && <div className="text-muted text-[13.5px]">{err}</div>}
       {!err && !data && <div className="text-muted text-[13.5px]">Loading today's move and headlines…</div>}
       {q && (
-        <div className={`rounded-lg px-4 py-3 mb-4 flex flex-wrap items-center gap-x-6 gap-y-1 ${up ? 'bg-gain-soft' : 'bg-loss-soft'}`}>
+        <div className={`rounded-xl px-4 py-3 mb-4 flex flex-wrap items-center gap-x-6 gap-y-1 ${up ? 'bg-gain-soft' : 'bg-loss-soft'}`}>
           <div className={`flex items-center gap-2 text-lg font-semibold ${up ? 'text-gain' : 'text-loss'}`}>
             {up ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
             <span className="num">{fp(q.changePct / 100, 2)}</span>

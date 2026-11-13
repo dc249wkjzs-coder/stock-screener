@@ -90,7 +90,7 @@ export default function BestMatches({ stocks }) {
               </div>
               <div className="grid gap-2">
                 {overall.picks.map((p, i) => (
-                  <div key={p.stock.symbol} className="grid grid-cols-[28px_minmax(120px,1fr)_56px] md:grid-cols-[28px_minmax(150px,220px)_56px_1fr] items-center gap-x-3 gap-y-2 rounded-lg border border-line px-3 py-2.5">
+                  <div key={p.stock.symbol} className="grid grid-cols-[28px_minmax(120px,1fr)_56px] md:grid-cols-[28px_minmax(150px,220px)_56px_1fr] items-center gap-x-3 gap-y-2 rounded-xl border border-line px-3 py-2.5">
                     <span className="text-[18px] font-semibold text-faint num">{i + 1}</span>
                     <StockLink s={p.stock} />
                     <div className="text-right"><div className="text-[18px] font-semibold num">{Math.round(p.score * 100)}</div><div className="text-[10.5px] text-faint -mt-0.5">of 100</div></div>
@@ -104,7 +104,7 @@ export default function BestMatches({ stocks }) {
           )}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {rest.map((c) => (
-              <div key={c.id} className="rounded-lg border border-line p-3.5 min-w-0">
+              <div key={c.id} className="rounded-xl border border-line p-3.5 min-w-0">
                 <h3 className="font-semibold">{c.title}</h3>
                 <p className="text-[12px] text-faint mt-0.5 mb-2.5">{c.how}</p>
                 {c.picks.length === 0 ? <p className="text-[13px] text-muted">None of the matching stocks qualify right now.</p> : (

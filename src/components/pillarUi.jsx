@@ -3,7 +3,7 @@ import { PILLARS } from '@shared/pillars.js'
 // Status colours: pass = green, warn = amber, fail = red, info/nodata = grey.
 export const STATUS = {
   pass: { dot: 'bg-gain', text: 'text-gain', soft: 'bg-gain-soft text-gain', label: 'Pass' },
-  warn: { dot: 'bg-warn', text: 'text-warn', soft: 'bg-accent-soft text-warn', label: 'Caution' },
+  warn: { dot: 'bg-warn', text: 'text-warn', soft: 'bg-warn-soft text-warn', label: 'Caution' },
   fail: { dot: 'bg-loss', text: 'text-loss', soft: 'bg-loss-soft text-loss', label: 'Fail' },
   info: { dot: 'bg-faint', text: 'text-muted', soft: 'bg-surface-2 text-muted', label: 'Info' },
   nodata: { dot: 'border border-faint bg-transparent', text: 'text-faint', soft: 'bg-surface-2 text-faint', label: 'No data' },
@@ -11,7 +11,7 @@ export const STATUS = {
 
 export const VERDICT = {
   pass: { label: 'Passes', cls: 'bg-gain-soft text-gain' },
-  'pass-warn': { label: 'Passes · caution', cls: 'bg-accent-soft text-warn' },
+  'pass-warn': { label: 'Passes · caution', cls: 'bg-warn-soft text-warn' },
   fail: { label: 'Fails', cls: 'bg-loss-soft text-loss' },
   incomplete: { label: 'Incomplete', cls: 'bg-surface-2 text-muted' },
 }
@@ -47,7 +47,7 @@ export const cap = (v) => (v == null ? '—' : v >= 1e12 ? `$${(v / 1e12).toFixe
 // Entry status from shared/valuation.js entrySetup().
 export const SETUP = {
   'zone-confirmed': { label: 'Buy zone · confirmed', cls: 'bg-gain-soft text-gain' },
-  zone: { label: 'Buy zone · not confirmed', cls: 'bg-accent-soft text-warn' },
+  zone: { label: 'Buy zone · not confirmed', cls: 'bg-warn-soft text-warn' },
   wait: { label: 'Wait for level', cls: 'bg-surface-2 text-fg' },
   extended: { label: 'Extended', cls: 'bg-surface-2 text-muted' },
   below: { label: 'Below all levels', cls: 'bg-loss-soft text-loss' },

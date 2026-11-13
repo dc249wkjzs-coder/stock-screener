@@ -44,14 +44,14 @@ export default function StockCart({ dark = false }) {
   return (
     <div className="relative" ref={box}>
       <button onClick={() => setOpen(!open)} title="Stock cart"
-        className={`relative inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13.5px] font-medium border ${dark ? 'border-white/20 text-white hover:bg-white/10' : 'border-line bg-surface hover:border-accent shadow-sm'}`}>
+        className={`relative inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13.5px] font-medium ${dark ? 'text-fg hover:bg-side-active' : 'glass border border-line hover:border-accent shadow-sm'}`}>
         <ShoppingCart size={17} />
         <span className="hidden sm:inline">Stock cart</span>
         <span className={`min-w-5 h-5 px-1 grid place-items-center rounded-full text-[11.5px] font-semibold num transition-transform ${n ? 'bg-accent text-accent-fg' : 'bg-surface-2 text-muted'} ${bump ? 'scale-125' : ''}`}>{n}</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-[min(360px,calc(100vw-24px))] z-50 card shadow-xl text-fg">
+        <div className="absolute right-0 mt-2 w-[min(360px,calc(100vw-24px))] z-50 card shadow-2xl text-fg overflow-hidden">
           <div className="px-4 pt-3.5 pb-2.5 flex items-center justify-between border-b border-line">
             <div className="font-semibold">Stock cart <span className="text-muted font-normal">· {n} stock{n === 1 ? '' : 's'}</span></div>
             <button className="text-muted hover:text-fg" onClick={() => setOpen(false)} title="Close"><X size={16} /></button>
@@ -59,7 +59,7 @@ export default function StockCart({ dark = false }) {
 
           <div className="px-4 py-2.5 border-b border-line relative">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Add a stock: type a ticker or name"
-              className="w-full rounded-md border border-line bg-surface px-3 py-1.5 text-[13.5px] outline-none focus:border-accent" />
+              className="input py-1.5!" />
             {found.length > 0 && (
               <div className="mt-1.5 grid">
                 {found.map((s) => {
