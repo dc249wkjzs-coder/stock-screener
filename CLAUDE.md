@@ -61,7 +61,8 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   balance sheet 10 / entry 10), best price to buy now (in Fibonacci zone), value (profitable, moat 5+), quality, growth,
   dividend (≥1.5%, payout ≤75%). Each pick lists the figures and their within-group rank. Tests in `tests/picks.test.js`.
 - **My portfolio** (`/portfolio`, `src/pages/Portfolio.jsx`, `shared/portfolio.js`, table `scr_portfolio` per user with optional
-  weight %): a planning list filled with the +/− `PortfolioButton` (Results rows, Best matches, Look up, stock page).
+  weight %): a planning list filled with the +/− `PortfolioButton` (Results rows, Best matches, Look up, stock page) and the
+  **Stock cart** (`src/components/StockCart.jsx`, top right: count badge, add by ticker, remove, "Check out" → /portfolio).
   Score 0–100 = quality 30 / growth 20 / value 20 / balance sheet 10 (each holding ranked vs the whole universe,
   weight-averaged) + diversification 20 (effective number of stocks, largest sector). Strengths/weaknesses are
   figures vs fixed thresholds or market medians. Unset weights share what's left equally. Tests `tests/portfolio.test.js`.

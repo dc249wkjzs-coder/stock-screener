@@ -47,7 +47,7 @@ export default function Portfolio() {
       <div className="grid gap-5">
         <h1 className="text-2xl font-semibold tracking-tight">My portfolio</h1>
         <Empty title="No stocks yet" action={<div className="flex gap-2 justify-center"><Link className="btn btn-primary" to="/results">Go to Results</Link><Link className="btn" to="/lookup"><Search size={14} /> Look up a stock</Link></div>}>
-          Press <span className="inline-grid place-items-center w-5 h-5 rounded border border-line align-middle"><Plus size={12} /></span> next to any stock (in Results, Best matches, Look up a stock or on a stock's page) to collect it here. The page then scores the whole group and lists its strengths and weaknesses.
+          Your stock cart is empty. Press <span className="inline-grid place-items-center w-5 h-5 rounded border border-line align-middle"><Plus size={12} /></span> next to any stock (in Results, Best matches, Look up a stock or on a stock's page), or use the Stock cart at the top right, then press Check out. The page then scores the whole group and lists its strengths and weaknesses.
         </Empty>
       </div>
     )
@@ -70,7 +70,7 @@ export default function Portfolio() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My portfolio</h1>
-          <div className="text-[13px] text-muted mt-1">{rows.length} stock{rows.length === 1 ? '' : 's'} · {anySet ? 'your own weights' : 'equal weights'} · a planning list, not real holdings</div>
+          <div className="text-[13px] text-muted mt-1">{rows.length} stock{rows.length === 1 ? '' : 's'} · {anySet ? 'your own weights' : 'equal weights'} · from your stock cart · a planning list, not real holdings</div>
         </div>
         <div className="flex flex-wrap gap-2">
           {anySet && <button className="btn" onClick={() => d.setWeights(Object.fromEntries(d.portfolio.map((p) => [p.symbol, null])))}>Reset to equal weights</button>}

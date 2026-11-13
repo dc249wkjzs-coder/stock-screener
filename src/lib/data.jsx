@@ -142,7 +142,7 @@ export function DataProvider({ children }) {
       if (error) return flash(error.message, 'error')
     }
     setPortfolio([...state.portfolio, { symbol, weight: null }])
-    flash(`${symbol} added to My portfolio`)
+    flash(`${symbol} added to your stock cart`)
   }
   async function removeFromPortfolio(symbol) {
     if (!DEMO) {
@@ -150,7 +150,7 @@ export function DataProvider({ children }) {
       if (error) return flash(error.message, 'error')
     }
     setPortfolio(state.portfolio.filter((p) => p.symbol !== symbol))
-    flash(`${symbol} removed from My portfolio`)
+    flash(`${symbol} removed from your stock cart`)
   }
   async function setWeights(changes) {   // { SYMBOL: weight% or null }
     if (!DEMO) {
@@ -167,7 +167,7 @@ export function DataProvider({ children }) {
       if (error) return flash(error.message, 'error')
     }
     setPortfolio([])
-    flash('My portfolio cleared')
+    flash('Stock cart emptied')
   }
 
   const value = { ...state, demo: DEMO, stocks, bySymbol, screen, setScreen, toast, flash, reload: load, saveOverride, savePreset, deletePreset, inPortfolio, addToPortfolio, removeFromPortfolio, setWeights, clearPortfolio }

@@ -3,6 +3,7 @@ import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen, Briefcase 
 import { useData } from '@/lib/data'
 import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
+import StockCart from '@/components/StockCart'
 
 export const NAV = [
   { to: '/', label: 'Stock finder', icon: SlidersHorizontal },
@@ -48,7 +49,10 @@ export default function Layout() {
           <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
             <Logo small />
             <span className="text-white font-semibold">Screener</span>
-            {!d.demo && <button className="ml-auto text-[12px] flex items-center gap-1" onClick={() => supabase.auth.signOut()}><LogOut size={13} /> Sign out</button>}
+            <div className="ml-auto flex items-center gap-3">
+              <StockCart dark />
+              {!d.demo && <button className="text-[12px] flex items-center gap-1" onClick={() => supabase.auth.signOut()}><LogOut size={13} /> Sign out</button>}
+            </div>
           </div>
           <nav className="flex gap-1 overflow-x-auto px-3 pb-2">
             {NAV.map((n) => (
@@ -59,7 +63,10 @@ export default function Layout() {
 
         {d.demo && <div className="bg-accent-soft text-accent text-[13px] font-medium px-4 py-2 text-center">Demo mode: sample stocks only.</div>}
 
-        <main className="mx-auto max-w-[1440px] py-6 lg:py-8 px-4 lg:px-6">
+        <div className="hidden lg:flex sticky top-0 z-40 justify-end px-6 pt-4 pointer-events-none">
+          <div className="pointer-events-auto"><StockCart /></div>
+        </div>
+        <main className="mx-auto max-w-[1440px] py-6 lg:pt-2 lg:pb-8 px-4 lg:px-6">
           {title && <h1 className="text-2xl font-semibold tracking-tight mb-6">{title}</h1>}
           {d.error && <div className="card bg-loss-soft text-loss px-4 py-3 mb-6 text-[13.5px]">Couldn't load the screener: {d.error}</div>}
           {d.loading ? <div className="text-muted py-20 text-center">Loading…</div> : <Outlet />}

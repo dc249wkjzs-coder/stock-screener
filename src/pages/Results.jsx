@@ -49,7 +49,7 @@ export default function Results() {
               <table className="grid-table">
                 <thead><tr>
                   <th className="w-8" title="Add to My portfolio" />
-                  {th('symbol', 'Stock')}
+                  {th('symbol', 'Stock', 'text-left!')}
                   {th('setupRank', <>Entry<Info id="buy-zone" /></>, 'text-left!')}
                   {th('moatUsed', <>Moat<Info id="moat" /></>)}
                   {th('forwardPE', <>Fwd P/E<Info id="forward-pe" /></>)}
@@ -71,7 +71,7 @@ export default function Results() {
                   {sorted.slice(0, limit).map((s) => (
                     <tr key={s.symbol} className="cursor-pointer" onClick={() => navigate(`/stock/${s.symbol}`)} title={`Open ${s.symbol}`}>
                       <td className="w-8 pr-0!"><PortfolioButton symbol={s.symbol} /></td>
-                      <td className="max-w-[220px]">
+                      <td className="max-w-[220px] text-left!">
                         <Link to={`/stock/${s.symbol}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-accent hover:underline">{s.symbol}</Link>
                         <div className="text-[12px] text-muted truncate">{s.name}</div>
                       </td>
