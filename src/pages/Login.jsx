@@ -38,7 +38,7 @@ export default function Login({ mode: initialMode = 'signin', onDone }) {
         <div>
           <div className="text-xl font-semibold">Screener</div>
           <div className="text-muted text-[13px] mt-1">
-            {mode === 'signin' ? 'Sign in with your Life Ledger account.' : mode === 'forgot' ? 'We will email you a reset link.' : 'Choose a new password.'}
+            {mode === 'signin' ? 'Sign in to continue.' : mode === 'forgot' ? 'We will email you a reset link.' : 'Choose a new password.'}
           </div>
         </div>
         {mode !== 'setpw' && (

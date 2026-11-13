@@ -65,11 +65,6 @@ if (process.env.SAMPLE_OUT) {
       metricsSample: m, pricesSample: prices[i].slice(-520).map(([date, close]) => ({ date, close })),
     };
   });
-  const owned = ['NVDA', 'MSFT', 'FTNT', 'TDG', 'AVGO', 'KLAC', 'LRCX', 'META', 'GOOGL', 'AMZN', 'LLY', 'SNPS', 'TMO', 'NOC', 'AXON', 'BWXT', 'GEV'];
-  const positions = [
-    ...owned.map((s) => ({ symbol: s, status: 'owned', shares: 40, avg_cost: 100, asset_class: 'stock' })),
-    { symbol: 'WMT', status: 'prospect', asset_class: 'stock' },
-  ];
-  writeFileSync(process.env.SAMPLE_OUT, JSON.stringify({ scoredAt: new Date().toISOString(), cards, positions }));
+  writeFileSync(process.env.SAMPLE_OUT, JSON.stringify({ scoredAt: new Date().toISOString(), cards }));
   console.error(`sample written: ${cards.length} stocks`);
 }

@@ -11,12 +11,12 @@ const TONE = {
   extended: 'border-line bg-surface-2', below: 'border-loss/40 bg-loss-soft', incomplete: 'border-line bg-surface-2', fail: 'border-loss/40 bg-loss-soft',
 }
 
-export default function PlanPanel({ s, guide }) {
+export default function PlanPanel({ s, guide = null }) {
   const st = s.setup
   const fair = s.fair
   const down = downside(s)
   return (
-    <Panel title="Valuation and entry plan" subtitle="Your mandate rules applied to the data. A reading of the numbers, not a forecast or advice.">
+    <Panel title="Valuation and entry plan" subtitle="Fixed rules applied to the data: a reading of the numbers, not a forecast or advice.">
       <div className={`rounded-lg border px-4 py-3 mb-5 ${TONE[st.status]}`}>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted"><Term id={st.status.startsWith('zone') ? 'confirmation' : st.status === 'fail' ? 'pillars' : 'buy-zone'}>{SETUP[st.status].label}</Term></div>
         <div className="text-lg font-semibold mt-0.5">{st.title}</div>
@@ -75,11 +75,10 @@ export default function PlanPanel({ s, guide }) {
                 </tbody>
               </table>
               <div className="text-[12px] text-faint mt-2">
-                {guide > 0 ? `Your ${usd(guide)} satellite guide (3% of your stock book) split evenly. ` : ''}
-                Levels from the 38.2% retracement down to the swing low.{fair && st.ladder.some((l) => l.price < fair.mid) ? ` Every level shown is ${st.ladder.every((l) => l.price < fair.low) ? 'below the whole fair value range' : 'below the fair value middle'} ${usd(fair.mid)}` : ''}.
+                                Levels from the 38.2% retracement down to the swing low.{fair && st.ladder.some((l) => l.price < fair.mid) ? ` Every level shown is ${st.ladder.every((l) => l.price < fair.low) ? 'below the whole fair value range' : 'below the fair value middle'} ${usd(fair.mid)}` : ''}.
               </div>
             </>
-          ) : <div className="text-muted text-[13px]">{st.status === 'fail' ? 'Not a mandate buy, so no levels.' : 'No Fibonacci levels at or below the price.'}</div>}
+          ) : <div className="text-muted text-[13px]">No Fibonacci levels at or below the price.</div>}
         </div>
 
         <div>

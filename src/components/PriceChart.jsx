@@ -41,7 +41,7 @@ function enrich(prices) {
   return out
 }
 
-export default function PriceChart({ prices, fib, owned, avgCost }) {
+export default function PriceChart({ prices, fib }) {
   const [range, setRange] = useState('252')
   const [show, setShow] = useState({ ma20: false, ma50: true, ma200: true, fib: true })
   const all = useMemo(() => enrich(prices || []), [prices])
@@ -89,7 +89,6 @@ export default function PriceChart({ prices, fib, owned, avgCost }) {
                 strokeWidth={fib.nextSupport?.ratio === l.ratio ? 1.6 : 1} strokeDasharray="5 4"
                 label={{ value: `${(l.ratio * 100).toFixed(l.ratio === 0 || l.ratio === 1 ? 0 : 1)}% ${short(l.price)}`, position: 'right', fontSize: 10, fill: fib.nextSupport?.ratio === l.ratio ? 'var(--accent)' : 'var(--muted)' }} />
             ))}
-            {owned && avgCost > 0 && <ReferenceLine y={avgCost} stroke="var(--c-stocks)" strokeOpacity={0.5} label={{ value: 'your cost', position: 'insideLeft', fontSize: 10, fill: 'var(--c-stocks)' }} />}
             {MAS.filter((m) => show[m.key]).map((m) => (
               <Line key={m.key} dataKey={m.key} dot={false} stroke={m.color} strokeWidth={1.3} isAnimationActive={false} connectNulls />
             ))}

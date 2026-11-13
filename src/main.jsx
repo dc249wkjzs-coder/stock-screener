@@ -6,9 +6,10 @@ import { DEMO, supabase } from './lib/supabase'
 import { DataProvider } from './lib/data'
 import Layout from './components/Layout'
 import Login from './pages/Login'
-import Screener from './pages/Screener'
+import Build from './pages/Build'
+import Results from './pages/Results'
+import Lookup from './pages/Lookup'
 import Stock from './pages/Stock'
-import Rules from './pages/Rules'
 import Status from './pages/Status'
 import Learn from './pages/Learn'
 
@@ -39,12 +40,13 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            <Route index element={<Screener />} />
+            <Route index element={<Build />} />
+            <Route path="results" element={<Results />} />
+            <Route path="lookup" element={<Lookup />} />
             <Route path="stock/:symbol" element={<Stock />} />
-            <Route path="rules" element={<Rules />} />
             <Route path="status" element={<Status />} />
             <Route path="learn" element={<Learn />} />
-            <Route path="*" element={<Screener />} />
+            <Route path="*" element={<Build />} />
           </Route>
         </Routes>
       </BrowserRouter>

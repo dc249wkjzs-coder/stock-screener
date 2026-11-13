@@ -1,7 +1,11 @@
 # Stock screener: handover notes
 
-Jameson's stock screener. It grades every US-listed stock above $500M market cap (US companies plus foreign companies on NYSE/Nasdaq such as ASML, TSM) against his written mandate
-(8 pillars), with a calculated moat score, Fibonacci entry levels, RSI and portfolio fit.
+Jameson's stock screener, redesigned 2026-11-13 as a generic "choose your own" screener (no personal data on it):
+**Build your screen** (`/`, category boxes + presets + live risk meter) → **Results** (`/results?…`, bookmarkable) →
+stock page; **Look up a stock** (`/lookup`) library search; Definitions; Data status. Covers every US-listed stock
+above $500M (US companies plus foreign companies on NYSE/Nasdaq such as ASML, TSM). Private: behind a Supabase login.
+**Licensing:** FMP Starter is personal use only; FMP says showing its data to anyone else (free or not) needs a Data
+Display and Licensing Agreement. Jameson knows; he doesn't want it public. Don't open sign-ups or make it public without that.
 Sister project of Life Ledger (same Supabase project and login). Last updated: 2026-11-10.
 See the Life Ledger repo's CLAUDE.md for how to work with Jameson (simple steps, facts not opinions,
 never commit secrets, English).
@@ -39,13 +43,17 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - `supabase/functions/stock-news/` – live quote + FMP stock news for one symbol, called by the stock page
   (`verify_jwt: true` and it also checks the caller is a signed-in user, so the public key alone can't use it).
 - `supabase/schema.sql` – tables, RLS, helper functions. `supabase/jobs.sql` – schedules.
-- `src/` – the site. Pillars are evaluated in the browser so rule changes (Mandate rules page,
-  saved per user in `scr_user_settings`) apply instantly. Moat overrides: `scr_overrides`.
-  "Add to watchlist" inserts a Life Ledger `positions` row (`status = 'prospect'`, target = next Fib level).
+- `shared/criteria.js` – the screen: industry THEMES, BLANK criteria, built-in PRESETS, `checks()`/`matches()`,
+  `riskProfile()` (risk meter: median beta, % loss-makers, median debt, median fwd P/E, median deepest 2-yr drop,
+  median moat; each 0–4, averaged → Lower/Moderate/High/Very high), URL params. Tests in `tests/criteria.test.js`.
+- `src/` – the site. The screen being built is kept in localStorage; saved presets per user in `scr_presets`
+  (Jameson's "My mandate" = moat 7+, PEG ≤2, EPS growth 10%+, debt ≤3x, profitable, no recent share sales).
+  Moat overrides per user: `scr_overrides`. No Life Ledger positions are read any more. `shared/pillars.js`
+  (`evaluate`, the old 8-pillar verdict) is no longer used by the site; DEFAULT_RULES still feeds valuation.js.
 - `shared/valuation.js` – fair value range (DCF, own 5-yr P/E, mandate PEG-2 P/E, analyst target; median = middle),
   downside reference levels, entry status (fail / incomplete / extended / wait / zone / zone-confirmed / below)
   and the Fibonacci buy ladder. Confirmation = close above 20-day avg AND RSI > 30; zone = within 3% of a level.
-- `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (57 terms). `<Term id>` / `<Info id>` link
+- `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (59 terms). `<Term id>` / `<Info id>` link
   any label to `/learn#id`; add a glossary entry for every new number shown on the site.
 - `src/lib/assessment.js` – strengths/weaknesses lines, each a figure vs a fixed threshold.
 - `scripts/calibrate.mjs` – pulls live FMP data for given tickers and prints the verdicts

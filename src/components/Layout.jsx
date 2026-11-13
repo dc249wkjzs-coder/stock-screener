@@ -1,15 +1,14 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Filter, SlidersHorizontal, Activity, LogOut, ExternalLink, BookOpen } from 'lucide-react'
+import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
 
-const LIFE_LEDGER = 'https://life-ledger-ashen.vercel.app'
-
 export const NAV = [
-  { to: '/', label: 'Screener', icon: Filter },
+  { to: '/', label: 'Build your screen', icon: SlidersHorizontal },
+  { to: '/results', label: 'Results', icon: List },
+  { to: '/lookup', label: 'Look up a stock', icon: Search },
   { to: '/learn', label: 'Definitions', icon: BookOpen },
-  { to: '/rules', label: 'Mandate rules', icon: SlidersHorizontal },
   { to: '/status', label: 'Data status', icon: Activity },
 ]
 
@@ -17,7 +16,7 @@ export default function Layout() {
   const d = useData()
   const loc = useLocation()
   const page = NAV.find((n) => (n.to === '/' ? loc.pathname === '/' : loc.pathname.startsWith(n.to)))
-  const title = loc.pathname.startsWith('/stock/') ? null : page?.label
+  const title = ['/learn', '/status'].includes(loc.pathname) ? page?.label : null
 
   return (
     <div className="min-h-screen lg:flex">
@@ -26,7 +25,7 @@ export default function Layout() {
           <Logo />
           <div>
             <div className="text-white font-semibold tracking-tight">Screener</div>
-            <div className="text-[11.5px] text-side-fg/70">Mandate · Moat · Entries</div>
+            <div className="text-[11.5px] text-side-fg/70">Choose · Screen · Assess</div>
           </div>
         </div>
         <nav className="px-3 grid gap-0.5">
@@ -36,9 +35,6 @@ export default function Layout() {
               {({ isActive }) => (<><n.icon size={16} className={isActive ? 'text-[var(--c-metals)]' : ''} />{n.label}</>)}
             </NavLink>
           ))}
-          <a href={LIFE_LEDGER} className="flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] font-medium hover:bg-side-active/60 hover:text-white">
-            <ExternalLink size={16} />Life Ledger
-          </a>
         </nav>
         <div className="mt-auto px-5 pb-5 text-[12px] text-side-fg/70 grid gap-2">
           <div>Scores updated {ago(d.lastScored)}</div>
@@ -57,7 +53,6 @@ export default function Layout() {
             {NAV.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => `shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium ${isActive ? 'bg-side-active text-white' : ''}`}>{n.label}</NavLink>
             ))}
-            <a href={LIFE_LEDGER} className="shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium">Life Ledger</a>
           </nav>
         </div>
 

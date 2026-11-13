@@ -16,12 +16,12 @@ export function assess(s) {
   else if (s.ebitdaMargin != null && s.ebitdaMargin < 0.15) add(bad, `Thin EBITDA margin of ${p(s.ebitdaMargin)}: little room for mistakes or price pressure.`, 'ebitda-margin')
 
   if (s.epsGrowth >= 0.15) add(good, `Analysts expect earnings to grow ${p(s.epsGrowth)} a year.`, 'eps-growth')
-  else if (s.epsGrowth != null && s.epsGrowth < 0.10) add(bad, `Expected earnings growth is only ${p(s.epsGrowth)} a year (your minimum is 10%).`, 'eps-growth')
+  else if (s.epsGrowth != null && s.epsGrowth < 0.10) add(bad, `Expected earnings growth is only ${p(s.epsGrowth)} a year.`, 'eps-growth')
   if (s.gaapLossTtm) add(bad, 'Loses money under GAAP accounting over the last 12 months.', 'gaap-adjusted')
 
   if (s.netDebtToEbitda != null && s.netDebtToEbitda < 0) add(good, 'Net cash: it holds more cash than debt.', 'net-debt')
   else if (s.netDebtToEbitda != null && s.netDebtToEbitda <= 1) add(good, `Low debt: net debt is ${x(s.netDebtToEbitda)} EBITDA.`, 'net-debt-ebitda')
-  else if (s.netDebtToEbitda > 3) add(bad, `High debt: net debt is ${x(s.netDebtToEbitda)} EBITDA (your comfort line is 3x).`, 'net-debt-ebitda')
+  else if (s.netDebtToEbitda > 3) add(bad, `High debt: net debt is ${x(s.netDebtToEbitda)} EBITDA (above 3x is usually seen as high).`, 'net-debt-ebitda')
   if (s.interestCoverage != null && s.interestCoverage > 0 && s.interestCoverage < 3) add(bad, `Profit covers interest only ${x(s.interestCoverage)}.`, 'interest-coverage')
 
   if (s.piotroski >= 7) add(good, `Strong financial health checklist (Piotroski ${s.piotroski}/9).`, 'piotroski')
@@ -29,8 +29,8 @@ export function assess(s) {
   if (s.altmanZ != null && s.altmanZ < 1.8) add(bad, `Altman Z-Score ${s.altmanZ.toFixed(1)} is in the distress zone (below 1.8).`, 'altman')
 
   if (s.peg != null && s.peg < 1) add(good, `Cheap for its growth: PEG ${s.peg.toFixed(2)}.`, 'peg')
-  else if (s.peg > 3) add(bad, `Expensive for its growth: PEG ${s.peg.toFixed(2)} (your mandate fails above 3).`, 'peg')
-  if (s.eval?.pillars?.value?.signal) add(good, `P/E is ${p(-s.peVs5y)} below its own 5-year average.`, 'value-signal')
+  else if (s.peg > 3) add(bad, `Expensive for its growth: PEG ${s.peg.toFixed(2)}.`, 'peg')
+  if (s.peVs5y != null && s.peVs5y <= -0.20) add(good, `P/E is ${p(-s.peVs5y)} below its own 5-year average.`, 'value-signal')
   if (s.fair?.vsMid <= -0.15) add(good, `Trades ${p(-s.fair.vsMid)} below the middle of its fair value range.`, 'fair-value')
   else if (s.fair?.vsMid >= 0.2) add(bad, `Trades ${p(s.fair.vsMid)} above the middle of its fair value range.`, 'fair-value')
 

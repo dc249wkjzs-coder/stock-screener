@@ -130,3 +130,16 @@ create table if not exists public.scr_ai (
 );
 alter table public.scr_ai enable row level security;
 create policy "read ai" on public.scr_ai for select to authenticated using (true);
+
+-- Saved screens ("presets"), one row per name per user.
+create table if not exists public.scr_presets (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null check (length(name) between 1 and 60),
+  criteria jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, name)
+);
+alter table public.scr_presets enable row level security;
+create policy "own presets" on public.scr_presets for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));

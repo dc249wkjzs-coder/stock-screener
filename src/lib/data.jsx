@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { DEMO, supabase } from './supabase'
-import { DEFAULT_RULES, evaluate } from '@shared/pillars.js'
+import { DEFAULT_RULES } from '@shared/pillars.js'
 import { fairValue, entrySetup } from '@shared/valuation.js'
+import { BLANK } from '@shared/criteria.js'
 
-// FMP lists one share class per company; map the other class to it (you may hold GOOGL, the screener has GOOG).
+// FMP lists one share class per company; map the other class to it (GOOGL → GOOG).
 export const ALIASES = { GOOGL: 'GOOG', 'BRK.B': 'BRK-B', 'BRK.A': 'BRK-B', 'BRK-A': 'BRK-B' }
 export const canonical = (s) => ALIASES[s?.toUpperCase()] || s?.toUpperCase()
 
@@ -22,37 +23,45 @@ async function selectAll(table, cols, filter) {
   }
 }
 
+// The visitor's current screen is remembered in this browser only.
+const SCREEN_KEY = 'screener.screen.v1'
+const loadScreen = () => { try { return { ...BLANK, ...JSON.parse(localStorage.getItem(SCREEN_KEY) || 'null') } } catch { return { ...BLANK } } }
+
+// Entry levels are worked out for every stock, independent of any screen.
+const PASS = { overall: 'pass', pillars: {}, missing: [] }
+
 export function DataProvider({ children }) {
-  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], positions: [], overrides: {}, savedRules: {}, quotes: {}, lastScored: null })
+  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], overrides: {}, ai: {}, presets: [], lastScored: null })
+  const [screen, setScreenState] = useState(loadScreen)
   const [toast, setToast] = useState(null)
   const flash = useCallback((msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200) }, [])
+  const setScreen = useCallback((next) => {
+    setScreenState(next)
+    try { localStorage.setItem(SCREEN_KEY, JSON.stringify(next)) } catch { /* private window: keep it in memory */ }
+  }, [])
 
   const load = useCallback(async () => {
     try {
       if (DEMO) {
         const sample = await fetch('/sample.json').then((r) => r.json())
-        setState({ loading: false, error: null, cards: sample.cards, ai: sample.ai || {}, pending: [], positions: sample.positions, overrides: {}, savedRules: {}, quotes: {}, lastScored: sample.scoredAt })
+        setState({ loading: false, error: null, cards: sample.cards, ai: sample.ai || {}, pending: [], overrides: {}, presets: [], lastScored: sample.scoredAt })
         return
       }
-      const [rows, pending, positions, overrides, settings, quotes, ai] = await Promise.all([
+      const [rows, pending, overrides, ai, presets] = await Promise.all([
         selectAll('scr_stocks', 'symbol,card,scored_at,fundamentals_at', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')),
         // Stocks in the universe whose financials haven't been downloaded and scored yet.
         selectAll('scr_stocks', 'symbol,name', (q) => q.eq('active', true).is('card', null).order('symbol')),
-        selectAll('positions', 'id,symbol,status,shares,avg_cost,asset_class,name', (q) => q.eq('asset_class', 'stock')),
         selectAll('scr_overrides', 'symbol,moat,note'),
-        supabase.from('scr_user_settings').select('rules').maybeSingle(),
-        selectAll('quotes', 'symbol,price'),
         selectAll('scr_ai', 'symbol,risk,benefit,risk_reasons,benefit_reasons,summary,rated_at,rated_by').catch(() => []),
+        supabase.from('scr_presets').select('id,name,criteria').order('name').then((r) => r.data || []),
       ])
       setState({
         loading: false, error: null,
         cards: rows.map((r) => ({ ...r.card, fundamentalsAt: r.fundamentals_at })),
         pending,
         ai: Object.fromEntries(ai.map((a) => [a.symbol, a])),
-        positions,
         overrides: Object.fromEntries(overrides.map((o) => [o.symbol, o])),
-        savedRules: settings.data?.rules || {},
-        quotes: Object.fromEntries(quotes.map((q) => [q.symbol, Number(q.price)])),
+        presets,
         lastScored: rows.reduce((m, r) => (r.scored_at > m ? r.scored_at : m), ''),
       })
     } catch (e) {
@@ -61,45 +70,14 @@ export function DataProvider({ children }) {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const rules = useMemo(() => ({ ...DEFAULT_RULES, ...state.savedRules }), [state.savedRules])
-
-  // Holdings: owned shares > 0 and watchlist names, by symbol.
-  const held = useMemo(() => {
-    const m = {}
-    for (const p of state.positions) {
-      if (!p.symbol) continue
-      const k = canonical(p.symbol)
-      m[k] ||= { shares: 0, cost: 0, watch: false }
-      if (p.status === 'prospect') m[k].watch = true
-      else { m[k].shares += Number(p.shares || 0); m[k].cost += Number(p.shares || 0) * Number(p.avg_cost || 0) }
-    }
-    return m
-  }, [state.positions])
-
-  // Stock book value (individual stocks only), for the satellite guide.
-  const book = useMemo(() => {
-    const px = Object.fromEntries(state.cards.map((c) => [c.symbol, c.price]))
-    let v = 0
-    for (const [sym, h] of Object.entries(held)) {
-      if (!h.shares) continue
-      const p = px[sym] ?? state.quotes[sym]
-      if (p) v += h.shares * p
-    }
-    return v
-  }, [held, state.cards, state.quotes])
-  const guide = book * rules.satellitePct
-
-  // Every stock with its mandate verdict, fair value range and entry status under the current rules.
+  // Every stock with its moat (override first), AI scores, fair value range and entry status.
   const stocks = useMemo(() => state.cards.map((c) => {
     const o = state.overrides[c.symbol]
     const a = state.ai?.[c.symbol]
     const s = { ...c, moatOverride: o?.moat ?? null, ai: a || null, aiRisk: a?.risk ?? null, aiBenefit: a?.benefit ?? null }
-    const e = evaluate(s, rules)
-    const h = held[c.symbol]
-    const fair = fairValue(s, rules)
-    const setup = entrySetup(s, e, rules, guide || null)
-    return { ...s, eval: e, moatUsed: e.moat, owned: (h?.shares || 0) > 0, watch: !!h?.watch, shares: h?.shares || 0, fair, setup }
-  }), [state.cards, state.overrides, state.ai, rules, held, guide])
+    s.moatUsed = s.moatOverride ?? c.moat?.score ?? null
+    return { ...s, fair: fairValue(s, DEFAULT_RULES), setup: entrySetup(s, PASS, DEFAULT_RULES, null) }
+  }), [state.cards, state.overrides, state.ai])
 
   const bySymbol = useMemo(() => Object.fromEntries(stocks.map((s) => [s.symbol, s])), [stocks])
 
@@ -120,30 +98,28 @@ export function DataProvider({ children }) {
     flash(moat == null ? `${symbol}: back to the calculated moat score` : `${symbol}: moat set to ${moat}`)
   }
 
-  async function saveRules(next) {
-    const clean = Object.fromEntries(Object.entries(next).filter(([k, v]) => v !== DEFAULT_RULES[k]))
+  // Your saved screens. Saving under an existing name replaces it.
+  async function savePreset(name, criteria) {
+    name = name.trim()
+    if (!name) return flash('Give the preset a name', 'warn')
+    let row = { id: `demo-${name}`, name, criteria }
     if (!DEMO) {
-      const { error } = await supabase.from('scr_user_settings').upsert({ rules: clean, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+      const { data, error } = await supabase.from('scr_presets').upsert({ name, criteria, updated_at: new Date().toISOString() }, { onConflict: 'user_id,name' }).select('id,name,criteria').single()
+      if (error) return flash(error.message, 'error')
+      row = data
+    }
+    setState((s) => ({ ...s, presets: [...s.presets.filter((p) => p.name !== name), row].sort((a, b) => a.name.localeCompare(b.name)) }))
+    flash(`Saved "${name}"`)
+  }
+  async function deletePreset(p) {
+    if (!DEMO) {
+      const { error } = await supabase.from('scr_presets').delete().eq('id', p.id)
       if (error) return flash(error.message, 'error')
     }
-    setState((s) => ({ ...s, savedRules: clean }))
-    flash('Rules saved')
+    setState((s) => ({ ...s, presets: s.presets.filter((x) => x.id !== p.id) }))
+    flash(`Deleted "${p.name}"`)
   }
 
-  // "Add to watchlist" = a Life Ledger position with status 'prospect'.
-  async function addToWatchlist(stock) {
-    if (held[stock.symbol]?.watch) return flash(`${stock.symbol} is already on your watchlist`, 'warn')
-    // Same shape as watchlist rows made in Life Ledger; the target is the next Fibonacci support.
-    const target = stock.fibSupport?.price ? Math.round(stock.fibSupport.price * 100) / 100 : null
-    const row = { symbol: stock.symbol, name: stock.name, asset_class: 'stock', status: 'prospect', shares: null, target_price: target }
-    if (!DEMO) {
-      const { data, error } = await supabase.from('positions').insert(row).select('id,symbol,status,shares,avg_cost,asset_class,name').single()
-      if (error) return flash(error.message, 'error')
-      setState((s) => ({ ...s, positions: [...s.positions, data] }))
-    } else setState((s) => ({ ...s, positions: [...s.positions, { ...row, id: Math.random() }] }))
-    flash(`${stock.symbol} added to your Life Ledger watchlist`)
-  }
-
-  const value = { ...state, demo: DEMO, rules, stocks, bySymbol, held, book, guide, toast, reload: load, saveOverride, saveRules, addToWatchlist }
+  const value = { ...state, demo: DEMO, stocks, bySymbol, screen, setScreen, toast, flash, reload: load, saveOverride, savePreset, deletePreset }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -17,7 +17,7 @@ export function fairValue(s, rules = DEFAULT_RULES) {
   if (ok(s.ntmEps) && ok(s.epsGrowth)) {
     // The highest P/E the value pillar passes outright: PEG at the pass line × growth in %, capped.
     const pe = Math.min(R.pegPass * s.epsGrowth * 100, R.fairPECap);
-    methods.push({ key: 'pegPE', label: `P/E your mandate allows (PEG ${R.pegPass})`, value: s.ntmEps * pe,
+    methods.push({ key: 'pegPE', label: `P/E at PEG ${R.pegPass} for its growth`, value: s.ntmEps * pe,
       how: `$${s.ntmEps.toFixed(2)} × ${pe.toFixed(1)}x (${R.pegPass} × ${(s.epsGrowth * 100).toFixed(1)}% growth${pe === R.fairPECap ? ', capped' : ''})` });
   }
   if (ok(s.targetConsensus)) {

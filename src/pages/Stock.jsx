@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Plus, ExternalLink } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Check, X } from 'lucide-react'
 import PriceChart from '@/components/PriceChart'
 import PlanPanel from '@/components/PlanPanel'
 import Term from '@/components/Term'
@@ -8,12 +8,13 @@ import { CompanyPanel, NewsPanel, AiPanel } from '@/components/CompanyPanels'
 import { useData, canonical } from '@/lib/data'
 import { DEMO, supabase } from '@/lib/supabase'
 import { Panel, Badge, Empty } from '@/components/ui'
-import { STATUS, Verdict, fx, fp, fn, usd, cap } from '@/components/pillarUi'
-import { PILLARS, marginTier } from '@shared/pillars.js'
+import { fx, fp, fn, usd, cap } from '@/components/pillarUi'
+import { marginTier } from '@shared/pillars.js'
+import { checks } from '@shared/criteria.js'
 import { date as fdate } from '@/lib/format'
 
-const PILLAR_TERM = { moat: 'moat', value: 'peg', eps: 'eps', ebitda: 'ebitda-margin', debt: 'net-debt-ebitda', financing: 'financing', knife: 'falling-knife', newco: 'new-company' }
-const MOAT_TERM = { 'Return on operating capital': 'roic', 'Track record': 'track-record', 'Gross margin level': 'gross-margin', 'Gross margin stability': 'gross-margin', 'Margin premium over peers': 'margin-premium', 'Loss years': 'loss-years' }
+const CHECK_TERM = { themes: null, moatMin: 'moat', debtMax: 'net-debt-ebitda', pe: 'forward-pe', pegMax: 'peg', growthMin: 'eps-growth', marginMin: 'ebitda-margin', profitable: 'gaap-adjusted', noDilution: 'financing', capMin: 'market-cap', betaMax: 'beta', aiRiskMax: 'ai-risk', entry: 'buy-zone' }
+const MOAT_TERM = { 'Return on operating capital': 'roic', Durability: 'roic', Consistency: 'track-record', 'Pricing power': 'gross-margin', 'Margin premium over peers': 'margin-premium', Erosion: 'gross-margin', 'Loss years': 'loss-years' }
 
 export default function Stock() {
   const { symbol } = useParams()
@@ -35,15 +36,16 @@ export default function Stock() {
 
   const waiting = !s && d.pending?.find((p) => p.symbol === symbol?.toUpperCase())
   if (waiting) return <Empty title={`${waiting.symbol} · ${waiting.name || ''}`}>This stock is in the screener, but its financials are still downloading (the first full load of all 2,350+ stocks takes a few hours). Check back later; nothing needs doing on your side.</Empty>
-  if (!s) return <Empty title={`${symbol} isn't in the screener`}>It may be below $500M market cap, not US-listed, an ETF, or its data hasn't loaded yet.</Empty>
-  const e = s.eval
+  if (!s) return <Empty title={`${symbol} isn't in the screener`} action={<Link className="btn" to="/lookup">Look up another stock</Link>}>It may be below $500M market cap, not listed in the US, an ETF, or its data hasn't loaded yet.</Empty>
+  const screenChecks = checks(s, d.screen)
+  const fits = screenChecks.length ? screenChecks.every((k) => k.ok) : null
   const m = detail?.metrics
 
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link to="/" className="text-[13px] text-muted hover:text-fg inline-flex items-center gap-1 mb-2"><ArrowLeft size={14} /> Screener</Link>
+          <Link to="/results" className="text-[13px] text-muted hover:text-fg inline-flex items-center gap-1 mb-2"><ArrowLeft size={14} /> Results</Link>
           <h1 className="text-2xl font-semibold tracking-tight flex flex-wrap items-center gap-2">
             {s.symbol} <span className="text-muted font-normal text-lg">{s.name}</span>
           </h1>
@@ -53,15 +55,12 @@ export default function Stock() {
           <div className="num text-2xl font-semibold">{usd(s.price)}</div>
           <div className="text-[12.5px] text-muted">close {fdate(s.priceDate)}</div>
           <div className="mt-2 flex flex-wrap justify-end gap-2 items-center">
-            <Verdict e={e} />
-            {s.owned ? <Badge tone="accent">Owned · {fn(s.shares, 2)} sh</Badge>
-              : s.watch ? <Badge>On watchlist</Badge>
-              : <button className="btn" onClick={() => d.addToWatchlist(s)}><Plus size={14} /> Add to watchlist</button>}
+            {fits != null && <Badge tone={fits ? 'gain' : 'loss'}>{fits ? 'Matches your screen' : `Misses ${screenChecks.filter((k) => !k.ok).length} of ${screenChecks.length} screen boxes`}</Badge>}
           </div>
         </div>
       </div>
 
-      <PlanPanel s={s} guide={d.guide} />
+      <PlanPanel s={s} />
 
       <div className="grid gap-5 xl:grid-cols-2 items-start">
         <CompanyPanel s={s} metrics={m} />
@@ -71,28 +70,13 @@ export default function Stock() {
       <AiPanel s={s} />
 
       <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
-        <Panel title="Mandate fit" subtitle={e.firstFail ? 'The first failed pillar stops the verdict; the rest are shown for context.' : e.overall === 'incomplete' ? `Missing data: ${e.missing.join(', ')}` : 'Every hard pillar passes.'}>
-          <ul className="grid gap-2">
-            {PILLARS.map(([k, label]) => {
-              const p = e.pillars[k]
-              return (
-                <li key={k} className={`flex gap-3 items-start rounded-lg px-3 py-2 ${k === e.firstFail ? 'ring-1 ring-loss/40' : ''}`}>
-                  <span className={`shrink-0 mt-0.5 rounded px-1.5 py-px text-[11px] font-semibold w-16 text-center ${STATUS[p.status].soft}`}>{STATUS[p.status].label}</span>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-[13.5px]"><Term id={PILLAR_TERM[k]}>{label}</Term></div>
-                    <div className="text-[13px] text-muted">{p.why}</div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </Panel>
+        <ScreenPanel checks={screenChecks} fits={fits} />
         <MoatPanel s={s} />
       </div>
 
       <FibPanel s={s} prices={detail?.prices} />
 
-      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-2">
         <Panel title="EPS lens and value" subtitle={`Forward P/E uses the ${fdate(s.priceDate)} close of ${usd(s.price)}.`}>
           <Rows rows={[
             ['Forward P/E (next 12 months)', fx(s.forwardPE), 'forward-pe'],
@@ -124,10 +108,9 @@ export default function Stock() {
             ['Magic Formula rank', s.magicRank ? `#${s.magicRank} of ${s.magicOf}` : 'n/a (financials/utilities or missing data)', 'magic-formula'],
           ]} />
         </Panel>
-        <FitPanel s={s} />
       </div>
 
-      <Panel title="Recent financing (last 90 days)" subtitle="Stock sales, converts and at-the-market programs fail pillar 6. Plain bond issues don't.">
+      <Panel title="Recent financing (last 90 days)" subtitle={'Stock sales, convertibles and at-the-market programs dilute shareholders; plain bond issues don\'t. The "No recent share sales" option rules out the first three.'}>
         {m?.recentRaises?.length || m?.recentShelves?.length ? (
           <ul className="grid gap-1.5 text-[13.5px]">
             {[...(m.recentRaises || []), ...(m.recentShelves || []).map((x) => ({ ...x, kind: 'shelf' }))].map((f) => (
@@ -192,16 +175,13 @@ function MoatPanel({ s }) {
 }
 
 function FibPanel({ s, prices }) {
-  const d = useData()
   const f = s.fib
-  const h = d.held[s.symbol]
-  const avgCost = h?.shares ? h.cost / h.shares : null
   const hi = f?.swingHigh.price, lo = f?.swingLow.price
   const ma = (v) => { if (v == null || !s.price) return ''; const g = s.price / v - 1; return ` · price is ${fp(Math.abs(g), 1)} ${g >= 0 ? 'above' : 'below'}` }
   return (
     <Panel title="Chart, moving averages and Fibonacci entry levels"
       subtitle={f ? `Swing low ${usd(lo)} on ${fdate(f.swingLow.date)} → swing high ${usd(hi)} on ${fdate(f.swingHigh.date)}, daily closes. The highlighted dashed line is the next support below the price.` : 'Not enough price history yet for Fibonacci levels.'}>
-      <PriceChart prices={prices} fib={f} owned={s.owned} avgCost={avgCost} />
+      <PriceChart prices={prices} fib={f} />
       {f && (
         <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr] mt-5 pt-4 border-t border-line">
           <table className="w-full text-[13px]">
@@ -232,28 +212,24 @@ function FibPanel({ s, prices }) {
   )
 }
 
-function FitPanel({ s }) {
-  const d = useData()
-  const guidePct = 0.03
-  const guide = d.book * guidePct
-  const drop = s.beta > 0 ? Math.max(-0.95, -0.25 * s.beta) : null
-  const holdingValue = s.shares * (s.price || 0)
-  // Theme exposure: what you already own in the same industry and sector.
-  const same = d.stocks.filter((x) => x.owned && x.symbol !== s.symbol)
-  const ind = same.filter((x) => x.industry === s.industry)
-  const sec = same.filter((x) => x.sector === s.sector)
-  const val = (list) => list.reduce((a, x) => a + x.shares * x.price, 0)
+// How this stock does against each box of the visitor's current screen.
+function ScreenPanel({ checks, fits }) {
   return (
-    <Panel title="Portfolio fit" subtitle="From your Life Ledger positions.">
-      <Rows rows={[
-        ['Stock book (individual stocks)', usd(d.book)],
-        ['Satellite guide (3% of book)', usd(guide), 'satellite'],
-        ['Your position now', s.owned ? `${usd(holdingValue)} (${fp(holdingValue / d.book, 1)} of book)` : 'None'],
-        ['Same industry already owned', ind.length ? `${ind.map((x) => x.symbol).join(', ')} · ${usd(val(ind))}` : 'None'],
-        ['Same sector already owned', sec.length ? `${sec.length} stocks · ${usd(val(sec))} (${fp(val(sec) / d.book, 0)})` : 'None'],
-        ['Crash test: QQQ −25% × beta ' + fn(s.beta, 2), drop == null ? '—' : `${fp(drop, 0)} ≈ ${usd(guide * drop)} on a guide-size position`, 'crash-test'],
-      ]} />
-      <div className="text-[12px] text-faint mt-3">The crash test is a beta estimate, not a forecast; high-multiple names often fall more than beta implies. Funding source for any buy is your call.</div>
+    <Panel title="Your screen" subtitle={fits == null ? 'No boxes set yet.' : fits ? 'Passes every box you set.' : 'Misses at least one box you set.'}
+      action={<Link to="/" className="btn btn-ghost text-[12.5px]">Change</Link>}>
+      {checks.length ? (
+        <ul className="grid gap-2">
+          {checks.map((k) => (
+            <li key={k.key} className="flex gap-3 items-start">
+              <span className={`shrink-0 mt-0.5 rounded-full p-0.5 ${k.ok ? 'bg-gain-soft text-gain' : 'bg-loss-soft text-loss'}`}>{k.ok ? <Check size={13} /> : <X size={13} />}</span>
+              <div className="min-w-0 text-[13.5px]">
+                <span className="font-semibold">{CHECK_TERM[k.key] ? <Term id={CHECK_TERM[k.key]}>{k.label}</Term> : k.label}</span>
+                <span className="text-muted"> · {k.why}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="text-[13.5px] text-muted">Pick what matters to you on <Link to="/" className="text-accent">Build your screen</Link>, and this panel shows how {`this stock`} measures up, box by box.</p>}
     </Panel>
   )
 }

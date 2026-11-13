@@ -52,7 +52,7 @@ export const SETUP = {
   extended: { label: 'Extended', cls: 'bg-surface-2 text-muted' },
   below: { label: 'Below all levels', cls: 'bg-loss-soft text-loss' },
   incomplete: { label: 'Incomplete', cls: 'bg-surface-2 text-faint' },
-  fail: { label: 'Fails mandate', cls: 'bg-loss-soft text-loss' },
+  fail: { label: 'Fails screen', cls: 'bg-loss-soft text-loss' },
 }
 export function SetupChip({ setup, long }) {
   const t = SETUP[setup.status]
