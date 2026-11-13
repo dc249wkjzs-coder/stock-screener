@@ -35,7 +35,7 @@ export default function Results() {
           <div className="text-[13px] text-muted mt-1">{summary.length ? `Screened on: ${summary.map((l) => (l === 'Industry' ? themes.join(', ') : l)).join(' · ')}` : 'No boxes set: every stock is shown.'}</div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link className="btn btn-primary" to={`/backtest?${toParams(c)}`}><History size={14} /> Past 5 years: test this screen</Link>
+          <Link className="btn btn-primary" to={`/backtest?${toParams(c)}`}><History size={14} /> Test these settings on the past 5 years</Link>
         </div>
       </div>
 
