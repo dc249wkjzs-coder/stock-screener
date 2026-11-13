@@ -28,11 +28,16 @@ async function selectAll(table, cols, filter) {
 const SCREEN_KEY = 'screener.screen.v1'
 const loadScreen = () => { try { return { ...BLANK, ...JSON.parse(localStorage.getItem(SCREEN_KEY) || 'null') } } catch { return { ...BLANK } } }
 
+// In demo mode the portfolio lives in this browser only.
+const DEMO_PF_KEY = 'screener.portfolio.demo'
+const loadDemoPortfolio = () => { try { return JSON.parse(localStorage.getItem(DEMO_PF_KEY) || '[]') } catch { return [] } }
+const saveDemoPortfolio = (pf) => { try { localStorage.setItem(DEMO_PF_KEY, JSON.stringify(pf)) } catch { /* ignore */ } }
+
 // Entry levels are worked out for every stock, independent of any screen.
 const PASS = { overall: 'pass', pillars: {}, missing: [] }
 
 export function DataProvider({ children }) {
-  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], overrides: {}, ai: {}, reviews: {}, presets: [], lastScored: null })
+  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], overrides: {}, ai: {}, reviews: {}, presets: [], portfolio: [], lastScored: null })
   const [screen, setScreenState] = useState(loadScreen)
   const [toast, setToast] = useState(null)
   const flash = useCallback((msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200) }, [])
@@ -45,10 +50,10 @@ export function DataProvider({ children }) {
     try {
       if (DEMO) {
         const sample = await fetch('/sample.json').then((r) => r.json())
-        setState({ loading: false, error: null, cards: sample.cards, ai: sample.ai || {}, pending: [], overrides: {}, presets: [], lastScored: sample.scoredAt })
+        setState({ loading: false, error: null, cards: sample.cards, ai: sample.ai || {}, pending: [], overrides: {}, presets: [], portfolio: loadDemoPortfolio(), lastScored: sample.scoredAt })
         return
       }
-      const [rows, pending, overrides, ai, presets, reviews] = await Promise.all([
+      const [rows, pending, overrides, ai, presets, reviews, portfolio] = await Promise.all([
         selectAll('scr_stocks', 'symbol,card,scored_at,fundamentals_at', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')),
         // Stocks in the universe whose financials haven't been downloaded and scored yet.
         selectAll('scr_stocks', 'symbol,name', (q) => q.eq('active', true).is('card', null).order('symbol')),
@@ -56,6 +61,7 @@ export function DataProvider({ children }) {
         selectAll('scr_ai', 'symbol,risk,benefit,risk_reasons,benefit_reasons,summary,rated_at,rated_by').catch(() => []),
         supabase.from('scr_presets').select('id,name,criteria').order('name').then((r) => r.data || []),
         selectAll('scr_moat_review', 'symbol,rating,sources,why,rated_at,rated_by').catch(() => []),
+        supabase.from('scr_portfolio').select('symbol,weight,added_at').order('added_at').then((r) => r.data || []),
       ])
       setState({
         loading: false, error: null,
@@ -64,6 +70,7 @@ export function DataProvider({ children }) {
         ai: Object.fromEntries(ai.map((a) => [a.symbol, a])),
         overrides: Object.fromEntries(overrides.map((o) => [o.symbol, o])),
         presets,
+        portfolio: portfolio.map((p) => ({ symbol: p.symbol, weight: p.weight == null ? null : Number(p.weight) })),
         reviews: Object.fromEntries(reviews.map((r) => [r.symbol, r])),
         lastScored: rows.reduce((m, r) => (r.scored_at > m ? r.scored_at : m), ''),
       })
@@ -125,6 +132,44 @@ export function DataProvider({ children }) {
     flash(`Deleted "${p.name}"`)
   }
 
-  const value = { ...state, demo: DEMO, stocks, bySymbol, screen, setScreen, toast, flash, reload: load, saveOverride, savePreset, deletePreset }
+  // My portfolio: a list of stocks being considered (not real holdings), each with an optional weight in %.
+  const inPortfolio = useCallback((symbol) => state.portfolio.some((p) => p.symbol === symbol), [state.portfolio])
+  function setPortfolio(next) { setState((s) => ({ ...s, portfolio: next })); if (DEMO) saveDemoPortfolio(next) }
+  async function addToPortfolio(symbol) {
+    if (inPortfolio(symbol)) return
+    if (!DEMO) {
+      const { error } = await supabase.from('scr_portfolio').upsert({ symbol }, { onConflict: 'user_id,symbol' })
+      if (error) return flash(error.message, 'error')
+    }
+    setPortfolio([...state.portfolio, { symbol, weight: null }])
+    flash(`${symbol} added to My portfolio`)
+  }
+  async function removeFromPortfolio(symbol) {
+    if (!DEMO) {
+      const { error } = await supabase.from('scr_portfolio').delete().eq('symbol', symbol)
+      if (error) return flash(error.message, 'error')
+    }
+    setPortfolio(state.portfolio.filter((p) => p.symbol !== symbol))
+    flash(`${symbol} removed from My portfolio`)
+  }
+  async function setWeights(changes) {   // { SYMBOL: weight% or null }
+    if (!DEMO) {
+      for (const [symbol, weight] of Object.entries(changes)) {
+        const { error } = await supabase.from('scr_portfolio').update({ weight }).eq('symbol', symbol)
+        if (error) return flash(error.message, 'error')
+      }
+    }
+    setPortfolio(state.portfolio.map((p) => (p.symbol in changes ? { ...p, weight: changes[p.symbol] } : p)))
+  }
+  async function clearPortfolio() {
+    if (!DEMO) {
+      const { error } = await supabase.from('scr_portfolio').delete().in('symbol', state.portfolio.map((p) => p.symbol))
+      if (error) return flash(error.message, 'error')
+    }
+    setPortfolio([])
+    flash('My portfolio cleared')
+  }
+
+  const value = { ...state, demo: DEMO, stocks, bySymbol, screen, setScreen, toast, flash, reload: load, saveOverride, savePreset, deletePreset, inPortfolio, addToPortfolio, removeFromPortfolio, setWeights, clearPortfolio }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

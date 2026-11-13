@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen } from 'lucide-react'
+import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen, Briefcase } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
@@ -8,6 +8,7 @@ export const NAV = [
   { to: '/', label: 'Stock finder', icon: SlidersHorizontal },
   { to: '/results', label: 'Results', icon: List },
   { to: '/lookup', label: 'Look up a stock', icon: Search },
+  { to: '/portfolio', label: 'My portfolio', icon: Briefcase, count: true },
   { to: '/learn', label: 'Definitions', icon: BookOpen },
   { to: '/status', label: 'Data status', icon: Activity },
 ]
@@ -32,7 +33,7 @@ export default function Layout() {
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.to === '/'}
               className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] font-medium ${isActive ? 'bg-side-active text-white' : 'hover:bg-side-active/60 hover:text-white'}`}>
-              {({ isActive }) => (<><n.icon size={16} className={isActive ? 'text-[var(--c-metals)]' : ''} />{n.label}</>)}
+              {({ isActive }) => (<><n.icon size={16} className={isActive ? 'text-[var(--c-metals)]' : ''} />{n.label}{n.count && d.portfolio.length > 0 && <span className="ml-auto rounded-full bg-side-active px-1.5 text-[11px] text-white num">{d.portfolio.length}</span>}</>)}
             </NavLink>
           ))}
         </nav>
@@ -51,7 +52,7 @@ export default function Layout() {
           </div>
           <nav className="flex gap-1 overflow-x-auto px-3 pb-2">
             {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => `shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium ${isActive ? 'bg-side-active text-white' : ''}`}>{n.label}</NavLink>
+              <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => `shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium ${isActive ? 'bg-side-active text-white' : ''}`}>{n.label}{n.count && d.portfolio.length > 0 ? ` (${d.portfolio.length})` : ''}</NavLink>
             ))}
           </nav>
         </div>

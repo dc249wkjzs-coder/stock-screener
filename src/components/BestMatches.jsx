@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Trophy } from 'lucide-react'
 import { bestMatches, GROUP_LABELS } from '@shared/picks.js'
 import { SetupChip, fx, fp, fn, usd } from '@/components/pillarUi'
 import { Info } from '@/components/Term'
+import PortfolioButton from '@/components/PortfolioButton'
 
 const HIDE_KEY = 'screener.bestMatches.hidden'
 
@@ -52,10 +53,13 @@ function Bar({ label, value }) {
 
 function StockLink({ s }) {
   return (
-    <div className="min-w-0">
-      <Link to={`/stock/${s.symbol}`} className="font-semibold text-accent hover:underline">{s.symbol}</Link>
-      <span className="text-[12px] text-muted ml-2 num">{usd(s.price)}</span>
-      <div className="text-[12px] text-muted truncate">{s.name}</div>
+    <div className="min-w-0 flex items-start gap-2">
+      <PortfolioButton symbol={s.symbol} />
+      <div className="min-w-0">
+        <Link to={`/stock/${s.symbol}`} className="font-semibold text-accent hover:underline">{s.symbol}</Link>
+        <span className="text-[12px] text-muted ml-2 num">{usd(s.price)}</span>
+        <div className="text-[12px] text-muted truncate">{s.name}</div>
+      </div>
     </div>
   )
 }

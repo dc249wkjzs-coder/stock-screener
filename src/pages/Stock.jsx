@@ -1,3 +1,4 @@
+import PortfolioButton from '@/components/PortfolioButton'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, Check, X } from 'lucide-react'
@@ -56,6 +57,7 @@ export default function Stock() {
           <div className="num text-2xl font-semibold">{usd(s.price)}</div>
           <div className="text-[12.5px] text-muted">close {fdate(s.priceDate)}</div>
           <div className="mt-2 flex flex-wrap justify-end gap-2 items-center">
+            <PortfolioButton symbol={s.symbol} full />
             {fits != null && <Badge tone={fits ? 'gain' : 'loss'}>{fits ? 'Matches your screen' : `Misses ${screenChecks.filter((k) => !k.ok).length} of ${screenChecks.length} screen boxes`}</Badge>}
           </div>
         </div>

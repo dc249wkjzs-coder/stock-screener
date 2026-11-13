@@ -155,3 +155,14 @@ create table if not exists public.scr_moat_review (
 );
 alter table public.scr_moat_review enable row level security;
 create policy "read moat reviews" on public.scr_moat_review for select to authenticated using (true);
+
+-- "My portfolio": stocks a user has collected on the screener (a planning list, not real holdings).
+create table if not exists public.scr_portfolio (
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  symbol text not null,
+  weight numeric check (weight is null or (weight >= 0 and weight <= 100)),
+  added_at timestamptz not null default now(),
+  primary key (user_id, symbol)
+);
+alter table public.scr_portfolio enable row level security;
+create policy "own portfolio" on public.scr_portfolio for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));

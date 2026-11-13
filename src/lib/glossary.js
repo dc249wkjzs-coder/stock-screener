@@ -14,7 +14,7 @@ export const GROUPS = [
   ['8 · When to buy: the chart', ['sma', 'sma-20', 'sma-50', 'sma-200', 'rsi', 'fibonacci', 'swing', 'buy-zone', 'confirmation', 'buy-ladder', 'off-high', 'falling-knife', 'pullback']],
   ['9 · How risky is it?', ['beta', 'crash-test', 'risk-level']],
   ['10 · Company filings', ['financing', 'shelf', 'prospectus', 'atm', 'convertible', 'new-company']],
-  ['11 · Using this site', ['presets', 'best-matches', 'backtest']],
+  ['11 · Using this site', ['presets', 'best-matches', 'portfolio-score', 'backtest']],
 ]
 
 export const TERMS = {
@@ -607,6 +607,15 @@ export const TERMS = {
     rule: 'Every pick shows the numbers that put it there. Green chips are figures in the top 20% of the group.',
     watch: 'It ranks stocks against each other, not against an absolute standard: in a weak group the "best" can still be mediocre. And it is a shortlist to research, not a buy signal.',
     where: 'Results page, above the list.',
+  },
+  'portfolio-score': {
+    term: 'Portfolio score',
+    simple: 'One number (0-100) for the stocks you collected in My portfolio, built from five parts: quality, growth, value, balance sheet and diversification.',
+    like: 'A school report card for a team: each player is graded against every student in the country, then the grades are averaged by how much each player plays.',
+    example: 'Your 8 stocks have moats better than 80% of all stocks (quality 80), grow faster than 70% (growth 70), are priced about average (value 50), carry little debt (balance sheet 75) and are spread over 4 sectors (diversification 60). Score = 0.3×80 + 0.2×70 + 0.2×50 + 0.1×75 + 0.2×60 = 67.5.',
+    rule: 'Quality, growth, value and balance sheet compare each stock with every stock in the screener, weighted by its share of the portfolio. Diversification rewards more (evenly weighted) stocks and no sector above 30%.',
+    watch: 'A high score means good figures today, not guaranteed returns. Stocks in the same industry often fall together even when each looks strong on its own.',
+    where: 'My portfolio page.',
   },
   backtest: {
     term: 'Backtest (past performance check)',

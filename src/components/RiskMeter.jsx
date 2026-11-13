@@ -34,7 +34,7 @@ export default function RiskMeter({ risk, compact }) {
               <span><span className="font-semibold">{f.label}:</span> <span className="text-muted">{f.text}</span></span>
             </li>
           ))}
-          {risk.concentrated && <li className="text-warn">Only {risk.n} stock{risk.n === 1 ? '' : 's'} match: a small group carries more single-company risk.</li>}
+          {risk.concentrated && <li className="text-warn">Only {risk.n} stock{risk.n === 1 ? '' : 's'}: a small group carries more single-company risk.</li>}
         </ul>
       )}
     </div>

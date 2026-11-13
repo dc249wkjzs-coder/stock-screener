@@ -1,3 +1,4 @@
+import PortfolioButton from '@/components/PortfolioButton'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
@@ -38,6 +39,7 @@ export default function Lookup() {
               <span className="font-semibold text-accent w-16 shrink-0">{s.symbol}</span>
               <span className="min-w-0 flex-1"><span className="block truncate text-[14px]">{s.name}</span><span className="block text-[12px] text-muted truncate">{s.industry}</span></span>
               <span className="text-right shrink-0"><span className="block num text-[13.5px]">{usd(s.price)}</span><span className="block num text-[12px] text-muted">{cap(s.marketCap)}</span></span>
+              <PortfolioButton symbol={s.symbol} />
             </Link>
           ))}
           {waiting.map((p) => (

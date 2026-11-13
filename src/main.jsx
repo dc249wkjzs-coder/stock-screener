@@ -13,6 +13,7 @@ import Backtest from './pages/Backtest'
 import Stock from './pages/Stock'
 import Status from './pages/Status'
 import Learn from './pages/Learn'
+import Portfolio from './pages/Portfolio'
 
 const arrivedToSetPassword = /type=(invite|recovery)/.test(window.location.hash)
 
@@ -44,6 +45,7 @@ function App() {
             <Route index element={<Build />} />
             <Route path="results" element={<Results />} />
             <Route path="lookup" element={<Lookup />} />
+            <Route path="portfolio" element={<Portfolio />} />
             <Route path="backtest" element={<Backtest />} />
             <Route path="stock/:symbol" element={<Stock />} />
             <Route path="status" element={<Status />} />
