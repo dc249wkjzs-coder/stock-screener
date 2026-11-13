@@ -88,6 +88,8 @@ export function DataProvider({ children }) {
     s.moatReview = state.reviews?.[c.symbol] || null
     s.moatBlend = blendMoat(c.moat?.score ?? null, s.moatReview)
     s.moatUsed = s.moatOverride ?? s.moatBlend
+    // PEG from growth above 100% is a base effect (earnings bouncing back from a very weak year), not a cheap price.
+    if (s.peg != null && s.epsGrowth > 1) { s.pegRaw = s.peg; s.peg = null; s.pegNote = `PEG left out: expected growth of ${Math.round(s.epsGrowth * 100)}% starts from a very weak year` }
     return { ...s, fair: fairValue(s, DEFAULT_RULES), setup: entrySetup(s, PASS, DEFAULT_RULES, null) }
   }), [state.cards, state.overrides, state.ai, state.reviews])
 

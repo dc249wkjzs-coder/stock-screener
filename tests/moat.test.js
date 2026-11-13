@@ -59,3 +59,11 @@ test('Blend: 60% written assessment, 40% numbers, capped at 9', () => {
   assert.equal(blendMoat(1, { rating: 7 }), 5)
   assert.equal(blendMoat(null, { rating: 10 }), 9)
 })
+
+import { blendMoat as bm } from '../shared/crossSection.js';
+test('blend: numbers lift a written rating by at most 1, can pull it down further', () => {
+  assert.equal(bm(8, { rating: 3 }), 4);   // IRWD-type: great numbers, weak business
+  assert.equal(bm(8, { rating: 9 }), 9);   // ASML
+  assert.equal(bm(1, { rating: 7 }), 5);   // GEV: numbers drag it down
+  assert.equal(bm(null, { rating: 6 }), 6);
+});

@@ -71,6 +71,7 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   and the Fibonacci buy ladder. Confirmation = close above 20-day avg AND RSI > 30; zone = within 3% of a level.
 - `src/lib/glossary.js` + `src/pages/Learn.jsx` – Definitions page (71 terms, beginner level, in 11 sections ordered as a learning path; each entry: simple, like, example, rule, watch, where). `<Term id>` / `<Info id>` link
   any label to `/learn#id`; add a glossary entry for every new number shown on the site.
+- PEG is set to null on the site when expected growth > 100% (`pegNote`, base effect from a weak year).
 - `shared/picks.js` + `src/components/BestMatches.jsx` – "Best matches" above the Results list: the matching stocks
   ranked against each other (0–100 within the group) in six categories: all-round (quality 30 / growth 25 / value 25 /
   balance sheet 10 / entry 10), best price to buy now (in Fibonacci zone), value (profitable, moat 5+), quality, growth,
@@ -128,8 +129,9 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - **Written moat assessment** (`scr_moat_review`, source of truth `data/moat-reviews.json`, SQL via
   `node scripts/load-moat-reviews.mjs`): Claude rates 1–9 in chat on Morningstar's five sources (brand/patents,
   switching costs, network effect, cost advantage, efficient scale; each 0–2) with a one-line reason.
-  Site moat = override ?? blendMoat(calc, review) = round(0.6 × review + 0.4 × calc), capped at 9; review alone when
-  there's no calculated score. Rated so far: holdings + watchlist + the 300 largest companies (333, 2026-11-13; VYLR skipped, unknown). Others on request.
+  Site moat = override ?? blendMoat(calc, review) = round(0.6 × review + 0.4 × calc), capped at 9 and at review + 1 (numbers
+  can't lift a weak business much; added 2026-11-13 after feedback on ATEN/TPR/IRWD/HLF/VIRT/SBC); review alone when
+  there's no calculated score. Rated so far: holdings + watchlist + the 300 largest companies + 6 from feedback (339, 2026-11-13; VYLR skipped, unknown). Others on request.
   The backtest uses only the calculated score (written reviews are today's judgement).
 - Fibonacci = 52-week high and the lowest close in the 52 weeks before it; if price breaks below
   that low, the swing low widens to the lowest close in ~2 years of stored history. Levels include 100%.

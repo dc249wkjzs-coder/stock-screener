@@ -43,7 +43,10 @@ export const MOAT_SOURCES = [
 export function blendMoat(calc, review) {
   if (!review) return calc ?? null;
   if (calc == null) return Math.min(9, review.rating);
-  return Math.min(9, Math.max(1, Math.round(0.6 * review.rating + 0.4 * calc)));
+  // 60% written judgement, 40% numbers; strong numbers can lift the written rating by at most 1 point
+  // (they can't create a moat the business doesn't have), weak numbers can pull it down further.
+  const blend = Math.round(0.6 * review.rating + 0.4 * calc);
+  return Math.min(9, review.rating + 1, Math.max(1, blend));
 }
 // Moat inputs from annual reports (newest first, FMP field names; up to 10 years). Stock-based pay is added back
 // to operating profit: it's a real cost to shareholders, but it doesn't say whether rivals can copy the business,

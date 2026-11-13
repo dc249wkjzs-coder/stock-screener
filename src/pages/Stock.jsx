@@ -82,7 +82,7 @@ export default function Stock() {
             ['Forward P/E (next 12 months)', fx(s.forwardPE), 'forward-pe'],
             ['Next-12-month EPS (consensus)', s.ntmEps == null ? '—' : `$${s.ntmEps.toFixed(2)}`, 'ttm-ntm'],
             ['Expected EPS growth / year', fp(s.epsGrowth, 1), 'eps-growth'],
-            ['PEG', fx(s.peg, 2), 'peg'],
+            ['PEG', s.pegNote ? 'n/a (growth from a weak year)' : fx(s.peg, 2), 'peg'],
             ['GAAP EPS, trailing 12 months', s.epsTtm == null ? '—' : `$${s.epsTtm.toFixed(2)}${s.gaapLossTtm ? ' (loss)' : ''}`, 'gaap-adjusted'],
             ['GAAP EPS growth, last fiscal year', fp(s.gaapEpsGrowthLastFy, 1), 'eps'],
             ['Trailing P/E vs own 5-yr average', s.peTtm == null ? '—' : `${fx(s.peTtm)} vs ${fx(s.pe5yAvg)} (${fp(s.peVs5y, 0)})`, 'pe-5y'],

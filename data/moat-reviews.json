@@ -334,6 +334,12 @@
     "KDP": {"rating": 6, "sources": {"intangibles": 2, "switching": 0, "network": 0, "cost": 1, "scale": 1}, "why": "Dr Pepper and Keurig brands."},
     "VALE": {"rating": 5, "sources": {"intangibles": 0, "switching": 0, "network": 0, "cost": 2, "scale": 1}, "why": "Iron ore miner with low costs."},
     "FNV": {"rating": 8, "sources": {"intangibles": 0, "switching": 0, "network": 0, "cost": 2, "scale": 1}, "why": "Royalties on many mines; no mine costs."},
-    "F": {"rating": 3, "sources": {"intangibles": 1, "switching": 0, "network": 0, "cost": 0, "scale": 1}, "why": "Car maker; competitive and capital heavy."}
+    "F": {"rating": 3, "sources": {"intangibles": 1, "switching": 0, "network": 0, "cost": 0, "scale": 1}, "why": "Car maker; competitive and capital heavy."},
+    "ATEN": {"rating": 4, "sources": {"intangibles": 1, "switching": 1, "network": 0, "cost": 0, "scale": 0}, "why": "Niche vendor of app-delivery and DDoS protection gear, competing with F5, Cloudflare, Akamai and the clouds' own load balancers; good margins, but no choke point or network effect."},
+    "TPR": {"rating": 5, "sources": {"intangibles": 2, "switching": 0, "network": 0, "cost": 1, "scale": 1}, "why": "Coach, Kate Spade and Stuart Weitzman are real brands, but mid-priced handbags are fashion-driven and crowded, with far less pricing power than true luxury houses."},
+    "IRWD": {"rating": 3, "sources": {"intangibles": 1, "switching": 0, "network": 0, "cost": 0, "scale": 0}, "why": "Depends almost entirely on one drug, LINZESS; licensed generics of the main doses can launch from March 2029 (the low dose possibly sooner), so today's profits are not durable."},
+    "HLF": {"rating": 2, "sources": {"intangibles": 1, "switching": 0, "network": 0, "cost": 0, "scale": 0}, "why": "Multi-level-marketing nutrition seller; a 2016 FTC settlement forced changes to its distributor model, sales have been shrinking and debt is high. The model is a regulatory risk, not a moat."},
+    "VIRT": {"rating": 4, "sources": {"intangibles": 0, "switching": 0, "network": 0, "cost": 1, "scale": 1}, "why": "High-speed market maker whose edge is technology and scale; rivals such as Citadel Securities and Jane Street keep the race going, and profits rise and fall with market volatility."},
+    "SBC": {"rating": 4, "sources": {"intangibles": 1, "switching": 1, "network": 0, "cost": 0, "scale": 1}, "why": "Japan's largest aesthetic-clinic franchise network (about 280 locations), run as a management-services company; scale is real, but the market is fragmented with low barriers, and 2025 revenue fell 15%."}
   }
 }
