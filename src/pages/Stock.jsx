@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, Check, X } from 'lucide-react'
 import PriceChart from '@/components/PriceChart'
-import PlanPanel from '@/components/PlanPanel'
+import PlanPanel, { CALL_STYLE } from '@/components/PlanPanel'
+import { verdict } from '@shared/valuation.js'
+import { compare } from '@shared/peers.js'
 import Term from '@/components/Term'
 import { CompanyPanel, NewsPanel, AiPanel } from '@/components/CompanyPanels'
 import { useData, canonical } from '@/lib/data'
@@ -42,6 +44,7 @@ export default function Stock() {
   const screenChecks = checks(s, d.screen)
   const fits = screenChecks.length ? screenChecks.every((k) => k.ok) : null
   const m = detail?.metrics
+  const call = verdict(s)
 
   return (
     <div className="grid gap-5">
@@ -57,13 +60,14 @@ export default function Stock() {
           <div className="num text-2xl font-semibold">{usd(s.price)}</div>
           <div className="text-[12.5px] text-muted">close {fdate(s.priceDate)}</div>
           <div className="mt-2 flex flex-wrap justify-end gap-2 items-center">
+            {call.call && <a href="#plan" title={call.sub} className={`rounded-full px-3 py-1 text-[13px] font-bold tracking-wide ${CALL_STYLE[call.call].pill}`}>{call.title.toUpperCase()}</a>}
             <PortfolioButton symbol={s.symbol} full />
             {fits != null && <Badge tone={fits ? 'gain' : 'loss'}>{fits ? 'Matches your screen' : `Misses ${screenChecks.filter((k) => !k.ok).length} of ${screenChecks.length} screen boxes`}</Badge>}
           </div>
         </div>
       </div>
 
-      <PlanPanel s={s} />
+      <div id="plan" className="scroll-mt-28"><PlanPanel s={s} /></div>
 
       <CompanyPanel s={s} metrics={m} />
 
@@ -77,15 +81,15 @@ export default function Stock() {
       <FibPanel s={s} prices={detail?.prices} />
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="EPS lens and value" subtitle={`Forward P/E uses the ${fdate(s.priceDate)} close of ${usd(s.price)}.`}>
-          <Rows rows={[
-            ['Forward P/E (next 12 months)', fx(s.forwardPE), 'forward-pe'],
+        <Panel title="EPS lens and value" subtitle={`Forward P/E uses the ${fdate(s.priceDate)} close of ${usd(s.price)}. Grey lines compare each figure with the median of its industry and of the whole screener.`}>
+          <Rows s={s} rows={[
+            ['Forward P/E (next 12 months)', fx(s.forwardPE), 'forward-pe', 'forwardPE', s.pe5yAvg ? `own 5-yr avg ${fx(s.pe5yAvg)} (trailing)` : null],
             ['Next-12-month EPS (consensus)', s.ntmEps == null ? '—' : `$${s.ntmEps.toFixed(2)}`, 'ttm-ntm'],
-            ['Expected EPS growth / year', fp(s.epsGrowth, 1), 'eps-growth'],
-            ['PEG', s.pegNote ? 'n/a (growth from a weak year)' : fx(s.peg, 2), 'peg'],
+            ['Expected EPS growth / year', fp(s.epsGrowth, 1), 'eps-growth', 'epsGrowth'],
+            ['PEG', s.pegNote ? 'n/a (growth from a weak year)' : fx(s.peg, 2), 'peg', 'peg'],
             ['GAAP EPS, trailing 12 months', s.epsTtm == null ? '—' : `$${s.epsTtm.toFixed(2)}${s.gaapLossTtm ? ' (loss)' : ''}`, 'gaap-adjusted'],
             ['GAAP EPS growth, last fiscal year', fp(s.gaapEpsGrowthLastFy, 1), 'eps'],
-            ['Trailing P/E vs own 5-yr average', s.peTtm == null ? '—' : `${fx(s.peTtm)} vs ${fx(s.pe5yAvg)} (${fp(s.peVs5y, 0)})`, 'pe-5y'],
+            ['Trailing P/E', fx(s.peTtm), 'pe-5y', 'peTtm', s.pe5yAvg && s.peTtm > 0 ? `own 5-yr avg ${fx(s.pe5yAvg)} (${s.peVs5y >= 0 ? `${fp(s.peVs5y, 0)} above` : `${fp(Math.abs(s.peVs5y), 0)} below`})` : null],
             ['FMP DCF value', s.dcf == null ? '—' : `${usd(s.dcf)} (${fp(s.dcfUpside, 0)} vs price)`, 'dcf'],
           ]} />
           {m?.estimates && (
@@ -97,16 +101,16 @@ export default function Stock() {
           )}
         </Panel>
         <Panel title="Profit, cash and debt">
-          <Rows rows={[
-            ['Sales growth, last year', fp(s.revenueGrowth, 1), 'revenue-growth'],
-            ['Sales growth, 3 years (a year)', fp(s.revenueGrowth3y, 1), 'revenue-growth'],
-            ['Free cash flow margin (TTM)', fp(s.fcfMargin, 1), 'free-cash-flow'],
-            ['Free cash flow yield (TTM)', fp(s.fcfYield, 1), 'fcf-yield'],
-            ['Dividend yield', s.dividendYield ? `${fp(s.dividendYield, 2)}${s.payoutRatio > 0 ? ` · pays out ${fp(s.payoutRatio, 0)} of profit` : ''}` : 'No dividend', 'dividend-yield'],
-            ['EBITDA margin (TTM)', `${fp(s.ebitdaMargin, 1)} · ${marginTier(s.ebitdaMargin)}`, 'ebitda-margin'],
-            ['EV / EBITDA', fx(s.evToEbitda), 'ev-ebitda'],
+          <Rows s={s} rows={[
+            ['Sales growth, last year', fp(s.revenueGrowth, 1), 'revenue-growth', 'revenueGrowth'],
+            ['Sales growth, 3 years (a year)', fp(s.revenueGrowth3y, 1), 'revenue-growth', 'revenueGrowth3y'],
+            ['Free cash flow margin (TTM)', fp(s.fcfMargin, 1), 'free-cash-flow', 'fcfMargin'],
+            ['Free cash flow yield (TTM)', fp(s.fcfYield, 1), 'fcf-yield', 'fcfYield'],
+            ['Dividend yield', s.dividendYield ? `${fp(s.dividendYield, 2)}${s.payoutRatio > 0 ? ` · pays out ${fp(s.payoutRatio, 0)} of profit` : ''}` : 'No dividend', 'dividend-yield', s.dividendYield ? 'dividendYield' : null],
+            ['EBITDA margin (TTM)', `${fp(s.ebitdaMargin, 1)} · ${marginTier(s.ebitdaMargin)}`, 'ebitda-margin', 'ebitdaMargin'],
+            ['EV / EBITDA', fx(s.evToEbitda), 'ev-ebitda', 'evToEbitda'],
             ['EBITDA growth, last fiscal year', fp(s.ebitdaGrowth, 1), 'ebitda'],
-            ['Net debt / EBITDA', s.netDebtToEbitda != null && s.netDebtToEbitda < 0 ? 'Net cash' : fx(s.netDebtToEbitda), 'net-debt-ebitda'],
+            ['Net debt / EBITDA', s.netDebtToEbitda != null && s.netDebtToEbitda < 0 ? 'Net cash' : fx(s.netDebtToEbitda), 'net-debt-ebitda', 'netDebtToEbitda'],
             ['Interest coverage', fx(s.interestCoverage), 'interest-coverage'],
             ['Piotroski F-Score (0–9)', fn(s.piotroski), 'piotroski'],
             ['Altman Z-Score', s.altmanZ == null ? '—' : `${s.altmanZ.toFixed(1)} ${s.altmanZ < 1.8 ? '(distress zone)' : s.altmanZ < 3 ? '(grey zone)' : '(safe zone)'}`, 'altman'],
@@ -134,15 +138,46 @@ export default function Stock() {
   )
 }
 
-function Rows({ rows }) {
+function Rows({ rows, s }) {
+  const d = useData()
   return (
     <dl className="grid gap-1.5 text-[13.5px]">
-      {rows.map(([k, v, id]) => (
-        <div key={k} className="flex justify-between gap-4 border-b border-line/60 pb-1.5 last:border-0">
-          <dt className="text-muted">{id ? <Term id={id}>{k}</Term> : k}</dt><dd className="num text-right">{v}</dd>
-        </div>
-      ))}
+      {rows.map(([k, v, id, key, extra]) => {
+        const c = key && s ? compare(s, key, d.peers) : null
+        return (
+          <div key={k} className="border-b border-line/60 pb-1.5 last:border-0">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted">{id ? <Term id={id}>{k}</Term> : k}</dt><dd className="num text-right">{v}</dd>
+            </div>
+            {(c?.group || c?.market != null || extra) && <PeerLine c={c} extra={extra} />}
+          </div>
+        )
+      })}
     </dl>
+  )
+}
+
+// "Industry 24.0x · Market 18.3x · own 5-yr avg 30.2x" under a figure, with a tag saying which side it sits on.
+const LOW_WORDS = { forwardPE: ['Cheaper', 'More expensive'], peTtm: ['Cheaper', 'More expensive'], peg: ['Cheaper', 'More expensive'], evToEbitda: ['Cheaper', 'More expensive'], netDebtToEbitda: ['Less debt', 'More debt'] }
+function PeerLine({ c, extra }) {
+  const f = (x) => (x == null ? '—' : c.key === 'netDebtToEbitda' && x < 0 ? 'net cash' : c.def.kind === 'x' ? fx(x) : fp(x, 1))
+  const where = c?.group ? `its ${c.group.label} and the market` : 'the market'
+  let tag = null
+  if (c?.verdict === 'between') tag = { text: `Between ${where}`, tone: 'bg-surface-2 text-muted' }
+  else if (c?.verdict) {
+    const [lo, hi] = LOW_WORDS[c.key] || ['Lower', 'Higher']
+    tag = { text: `${c.verdict === 'below' ? lo : hi} than ${where}`, tone: c.better ? 'bg-gain-soft text-gain' : 'bg-loss-soft text-loss' }
+  }
+  const parts = [
+    c?.group ? `${c.group.label[0].toUpperCase()}${c.group.label.slice(1)} ${f(c.group.median)}` : null,
+    c?.market != null ? `Market ${f(c.market)}` : null,
+    extra,
+  ].filter(Boolean)
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 mt-1 text-[12px] text-faint num">
+      <span>{parts.join(' · ')}</span>
+      {tag && <span className={`rounded-full px-2 py-px text-[11.5px] font-semibold ${tag.tone}`}>{tag.text}</span>}
+    </div>
   )
 }
 

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { DEMO, supabase } from './supabase'
 import { DEFAULT_RULES } from '@shared/pillars.js'
 import { fairValue, entrySetup } from '@shared/valuation.js'
+import { peerStats } from '@shared/peers.js'
 import { BLANK } from '@shared/criteria.js'
 import { finalMoat } from '@shared/crossSection.js'
 
@@ -99,6 +100,8 @@ export function DataProvider({ children }) {
   }), [state.cards, state.overrides, state.ai, state.reviews, state.flags])
 
   const bySymbol = useMemo(() => Object.fromEntries(stocks.map((s) => [s.symbol, s])), [stocks])
+  // Industry / sector / market medians, so the stock page can show each figure next to what is normal.
+  const peers = useMemo(() => peerStats(stocks), [stocks])
 
   async function saveOverride(symbol, moat, note) {
     if (DEMO) { setState((s) => ({ ...s, overrides: { ...s.overrides, [symbol]: moat == null ? undefined : { symbol, moat, note } } })); return }
@@ -177,6 +180,6 @@ export function DataProvider({ children }) {
     flash('Stock cart emptied')
   }
 
-  const value = { ...state, demo: DEMO, stocks, bySymbol, screen, setScreen, toast, flash, reload: load, saveOverride, savePreset, deletePreset, inPortfolio, addToPortfolio, removeFromPortfolio, setWeights, clearPortfolio }
+  const value = { ...state, demo: DEMO, stocks, bySymbol, peers, screen, setScreen, toast, flash, reload: load, saveOverride, savePreset, deletePreset, inPortfolio, addToPortfolio, removeFromPortfolio, setWeights, clearPortfolio }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

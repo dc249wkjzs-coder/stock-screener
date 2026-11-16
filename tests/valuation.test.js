@@ -70,3 +70,17 @@ test('fair value: sanity rules and agreement (IRWD, NVDA, KO from live data 2026
   const ko = fv2({ price: 97.4, dcf: 81, pe5yAvg: 25.4, ntmEps: 3.5, epsGrowth: 0.086, targetConsensus: 98 });
   assert.equal(ko.methods.length, 4); assert.ok(ko.vsMid != null);
 });
+
+test('Verdict: buy needs bouncing in a zone AND price at/below fair value; 30%+ above is sell; else hold', async () => {
+  const { verdict } = await import('../shared/valuation.js')
+  const fair = (vsMid) => ({ vsMid, mid: 100, agreement: 'moderate' })
+  const st = (status, detail = 'x') => ({ status, detail, title: status === 'wait' ? 'Wait for $90.00' : 't', ladder: [] })
+  assert.equal(verdict({ fair: fair(-0.2), setup: st('zone-confirmed') }).call, 'buy')
+  assert.equal(verdict({ fair: fair(0.1), setup: st('zone-confirmed') }).call, 'hold')
+  assert.equal(verdict({ fair: fair(null), setup: st('zone-confirmed') }).call, 'hold')
+  assert.equal(verdict({ fair: fair(-0.36), setup: st('extended', 'First entry level: 38.2% at $251.46 (-5.7%).') }).call, 'hold')
+  assert.match(verdict({ fair: fair(-0.36), setup: st('extended', 'First entry level: 38.2% at $251.46 (-5.7%).') }).next, /\$251\.46/)
+  assert.equal(verdict({ fair: fair(0.3), setup: st('zone-confirmed') }).call, 'sell')
+  assert.equal(verdict({ fair: fair(-0.2), setup: st('zone') }).call, 'hold')
+  assert.equal(verdict({ fair: fair(-0.2), setup: st('incomplete') }).call, null)
+})

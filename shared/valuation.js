@@ -131,3 +131,44 @@ export function entrySetup(s, e, rules = DEFAULT_RULES, guide = null) {
 }
 
 export const SETUP_ORDER = { 'zone-confirmed': 0, zone: 1, wait: 2, extended: 3, below: 4, incomplete: 5, fail: 6 };
+
+// One call for the "Valuation and entry plan" panel, from that panel's two readings only:
+// price vs the fair value middle (only when the estimates agree) and the Fibonacci entry status.
+//   SELL  price 30%+ above the fair value middle (the backtest's weakest group; see CLAUDE.md, fairtest)
+//   BUY   in a buy zone and bouncing (zone-confirmed) AND at or below the fair value middle
+//   HOLD  everything else; `next` says what would turn it into a buy
+// Not a forecast: each reason is listed so the call can be checked.
+export const VERDICT = { sellAbove: 0.30, cheapBelow: -0.15 };
+const money = (x) => `$${x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export function verdict(s) {
+  const fair = s.fair, st = s.setup;
+  if (!st || st.status === 'incomplete') return { call: null, title: 'No call yet', reasons: [], next: st?.detail || 'Not enough data.' };
+  const v = fair?.vsMid ?? null;
+  const pct = (x) => `${Math.round(Math.abs(x) * 100)}%`;
+  const value = v == null
+    ? { ok: null, text: fair?.mid == null ? 'No fair value: not enough estimates' : fair.agreement === 'single' ? 'Fair value from one estimate only, so no price reading' : 'Fair value estimates disagree, so no price reading' }
+    : v >= VERDICT.sellAbove ? { ok: false, text: `Price ${pct(v)} above the fair value middle (${money(fair.mid)})` }
+    : v <= VERDICT.cheapBelow ? { ok: true, text: `Price ${pct(v)} below the fair value middle (${money(fair.mid)})` }
+    : v <= 0 ? { ok: true, text: `Price ${pct(v)} below the fair value middle (${money(fair.mid)})` }
+    : { ok: false, text: `Price ${pct(v)} above the fair value middle (${money(fair.mid)})` };
+  const lc = (t) => (t ? t[0].toLowerCase() + t.slice(1) : t);
+  const timing = st.status === 'zone-confirmed' ? { ok: true, text: `In a buy zone and turning up: ${lc(st.detail)}` }
+    : st.status === 'zone' ? { ok: false, text: `In a buy zone but not turning up yet: ${lc(st.detail)}` }
+    : st.status === 'below' ? { ok: false, text: `Below every buy level: ${lc(st.detail)}` }
+    : st.status === 'fail' ? { ok: false, text: st.detail }
+    : { ok: false, text: `Not at a buy level: ${lc(st.detail)}` };
+  const reasons = [value, timing];
+  const first = st.ladder?.[0];
+  if (v != null && v >= VERDICT.sellAbove) return { call: 'sell', title: 'Sell', sub: 'Expensive against its fair value', reasons, next: `The price would need to fall to about ${money(fair.mid)} (the fair value middle) to stop being expensive.` };
+  if (st.status === 'zone-confirmed' && v != null && v <= 0) return { call: 'buy', title: 'Buy', sub: v <= VERDICT.cheapBelow ? 'Cheap, at a buy level and turning up' : 'At or below fair value, at a buy level and turning up', reasons, next: null };
+  let next;
+  if (st.status === 'zone-confirmed') next = v == null ? 'The timing fits, but there is no reliable fair value to confirm the price.' : `The timing fits, but the price is above the fair value middle (${money(fair.mid)}).`;
+  else if (st.status === 'zone') next = 'Becomes a buy once it turns up: a close above the 20-day average with RSI above 30.';
+  else if (st.status === 'below') next = 'Broke below its swing low: wait for the price to settle and new levels to form.';
+  else if (first || st.status === 'extended' || st.status === 'wait') {
+    const lvl = st.title?.match(/\$[\d.,]+/)?.[0] || (st.detail?.match(/\$[\d.,]+/) || [])[0];
+    next = `Buy zone starts near ${lvl || 'the next Fibonacci level'}, if it turns up there${v != null && v > 0 ? ' and the price is no longer above fair value' : ''}.`;
+  } else next = null;
+  const sub = v != null && v <= VERDICT.cheapBelow ? 'Cheap, but not at a buy level yet' : v != null && v > 0 ? 'Above fair value, not a buy yet' : 'Not a buy yet';
+  return { call: 'hold', title: 'Hold', sub: st.status === 'zone-confirmed' ? 'Good timing, price not confirmed' : sub, reasons, next };
+}

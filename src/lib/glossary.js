@@ -5,13 +5,13 @@
 
 export const GROUPS = [
   ['1 · The basics', ['stock', 'market-cap', 'revenue', 'eps', 'gaap-adjusted', 'ttm-ntm']],
-  ['2 · Cheap or expensive?', ['pe', 'forward-pe', 'eps-growth', 'peg', 'pe-5y', 'value-signal', 'ev', 'ev-ebitda']],
+  ['2 · Cheap or expensive?', ['pe', 'forward-pe', 'eps-growth', 'peg', 'pe-5y', 'peer-median', 'value-signal', 'ev', 'ev-ebitda']],
   ['3 · How profitable is it?', ['revenue-growth', 'gross-margin', 'operating-margin', 'ebit', 'ebitda', 'ebitda-margin', 'margin-tiers', 'free-cash-flow', 'fcf-yield', 'dividend-yield']],
   ['4 · How much debt?', ['net-debt', 'net-debt-ebitda', 'interest-coverage']],
   ['5 · Is it a strong business?', ['moat', 'moat-sources', 'moat-caps', 'market-position', 'roic', 'durability', 'track-record', 'margin-premium', 'erosion', 'loss-years', 'piotroski', 'altman', 'magic-formula']],
   ['6 · What could it be worth?', ['fair-value', 'dcf', 'analyst-target', 'mandate-pe']],
   ['7 · AI winners and losers', ['ai-risk', 'ai-benefit']],
-  ['8 · When to buy: the chart', ['sma', 'sma-20', 'sma-50', 'sma-200', 'rsi', 'stochastic', 'fibonacci', 'swing', 'buy-zone', 'confirmation', 'buy-ladder', 'off-high', 'falling-knife', 'pullback']],
+  ['8 · When to buy: the chart', ['verdict', 'sma', 'sma-20', 'sma-50', 'sma-200', 'rsi', 'stochastic', 'fibonacci', 'swing', 'buy-zone', 'confirmation', 'buy-ladder', 'off-high', 'falling-knife', 'pullback']],
   ['9 · How risky is it?', ['beta', 'crash-test', 'risk-level']],
   ['10 · Company filings', ['financing', 'shelf', 'prospectus', 'atm', 'convertible', 'new-company']],
   ['11 · Using this site', ['presets', 'investor-strategies', 'best-matches', 'portfolio-score', 'backtest']],
@@ -104,6 +104,15 @@ export const TERMS = {
     rule: 'Under 1 = cheap for its growth. 1–2 = fair. 2–3 = expensive. Over 3 = very expensive.',
     watch: 'Only as good as the growth forecast. Made popular by the famous fund manager Peter Lynch.',
     where: 'The "PEG" box, the Results table and each stock page.',
+  },
+  'peer-median': {
+    term: 'Industry and market medians',
+    simple: 'The grey line under a figure on the stock page: the middle value of the same figure across its industry and across every stock in the screener.',
+    like: 'Checking a house price against the average for the street and for the whole city.',
+    example: 'Forward P/E 32x · Industry 24.0x · Market 18.3x → more expensive than its industry and the market.',
+    rule: 'Green tag = the better side of both (cheaper, faster growth, less debt); red = the worse side of both; grey = in between. Industries with fewer than 5 usable stocks use the sector instead. P/E, PEG and EV/EBITDA medians count only positive values, so loss-makers don\'t drag them down.',
+    watch: 'A stock can deserve a higher P/E than its industry if it grows faster or has a stronger moat; the comparison shows where it sits, not whether that is right.',
+    where: 'Under the figures in "EPS lens and value" and "Profit, cash and debt" on each stock page.',
   },
   'pe-5y': {
     term: 'P/E vs its own 5-year average',
@@ -488,6 +497,15 @@ export const TERMS = {
     example: 'Low $75 in February, high $195 in October: the Fibonacci levels sit between those two prices.',
     rule: 'The levels are only as good as the move they\'re drawn from.',
     where: 'Dots on the chart.',
+  },
+  verdict: {
+    term: 'The call: Buy / Hold / Sell',
+    simple: 'One word that sums up the Valuation and entry plan, from two readings: the price against its fair value, and whether it is at a Fibonacci buy level and turning up.',
+    like: 'A traffic light at a junction: green when both the price and the timing are right, amber while you wait, red when the price has run far ahead of what the business looks worth.',
+    example: 'Fair value middle $100, price $85 (15% below), in the buy zone at the 50% level and back above its 20-day average with RSI 38 → Buy. Same stock at $120 with no buy level near → Hold. At $135 (35% above) → Sell.',
+    rule: 'Buy = in a buy zone and turning up AND at or below the fair value middle. Sell = 30% or more above the fair value middle. Hold = everything else; the box says what would turn it into a buy. "Sell" means sell if you own it, or don\'t buy if you don\'t.',
+    watch: 'It only reads price and timing; it doesn\'t judge the business (see the moat and your screen for that). The site\'s test of the fair value range (1,702 stocks, 2019–2025) found stocks 30%+ above the middle returned a median 5.3% over the next year and beat the market median 45% of the time, against 15.3% and 52% for stocks 30%+ below. A real but small edge, not a guarantee.',
+    where: 'Top of the Valuation and entry plan on each stock page, and the coloured badge next to the price.',
   },
   'buy-zone': {
     term: 'Buy zone',

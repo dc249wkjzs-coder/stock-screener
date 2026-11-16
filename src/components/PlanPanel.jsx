@@ -1,7 +1,7 @@
-import { Check, X } from 'lucide-react'
+import { Check, X, Minus } from 'lucide-react'
 import { Panel } from './ui'
 import { SETUP, fp, usd } from './pillarUi'
-import { downside } from '@shared/valuation.js'
+import { downside, verdict } from '@shared/valuation.js'
 import Term from './Term'
 
 const METHOD_TERM = { dcf: 'dcf', histPE: 'pe-5y', pegPE: 'mandate-pe', analyst: 'analyst-target' }
@@ -15,8 +15,10 @@ export default function PlanPanel({ s, guide = null }) {
   const st = s.setup
   const fair = s.fair
   const down = downside(s)
+  const v = verdict(s)
   return (
     <Panel title="Valuation and entry plan" subtitle="Fixed rules applied to the data: a reading of the numbers, not a forecast or advice.">
+      <VerdictBox v={v} />
       <div className={`rounded-xl border px-4 py-3 mb-5 ${TONE[st.status]}`}>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted"><Term id={st.status.startsWith('zone') ? 'confirmation' : st.status === 'fail' ? 'pillars' : 'buy-zone'}>{st.status.startsWith('zone') ? 'Entry timing' : SETUP[st.status].label}</Term></div>
         <div className="text-lg font-semibold mt-0.5">{st.title}</div>
@@ -123,19 +125,56 @@ export default function PlanPanel({ s, guide = null }) {
   )
 }
 
+export const CALL_STYLE = {
+  buy: { box: 'border-gain/50 bg-gain-soft', pill: 'bg-gain text-white' },
+  hold: { box: 'border-warn/40 bg-warn-soft', pill: 'bg-warn text-white' },
+  sell: { box: 'border-loss/40 bg-loss-soft', pill: 'bg-loss text-white' },
+}
+
+// The headline call: Buy / Hold / Sell, its two reasons and what would change it.
+function VerdictBox({ v }) {
+  if (!v.call) return (
+    <div className="rounded-xl border border-line bg-surface-2 px-4 py-3 mb-4">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted"><Term id="verdict">The call</Term></div>
+      <div className="text-lg font-semibold mt-0.5">{v.title}</div>
+      <div className="text-[13.5px] text-muted mt-0.5">{v.next}</div>
+    </div>
+  )
+  const c = CALL_STYLE[v.call]
+  return (
+    <div className={`rounded-xl border px-4 py-3.5 mb-4 ${c.box}`}>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted"><Term id="verdict">The call</Term></div>
+      <div className="flex flex-wrap items-center gap-3 mt-1">
+        <span className={`rounded-full px-4 py-1 text-[20px] font-bold tracking-wide ${c.pill}`}>{v.title.toUpperCase()}</span>
+        <span className="text-[15px] font-semibold">{v.sub}</span>
+      </div>
+      <ul className="grid gap-1 mt-3 text-[13.5px]">
+        {v.reasons.map((r) => (
+          <li key={r.text} className="flex gap-2 items-start">
+            <span className={`shrink-0 mt-0.5 ${r.ok ? 'text-gain' : r.ok === false ? 'text-loss' : 'text-muted'}`}>{r.ok ? <Check size={15} /> : r.ok === false ? <X size={15} /> : <Minus size={15} />}</span>
+            <span>{r.text}</span>
+          </li>
+        ))}
+      </ul>
+      {v.next && <div className="text-[13px] text-muted mt-2"><b className="text-fg">What would change it:</b> {v.next}</div>}
+    </div>
+  )
+}
+
 // Horizontal bar: fair value range with the middle and the current price marked.
 function RangeBar({ low, mid, high, price }) {
   const lo = Math.min(low, price) * 0.97, hi = Math.max(high, price) * 1.03
   const x = (v) => `${((v - lo) / (hi - lo)) * 100}%`
+  const pos = (price - lo) / (hi - lo)
   return (
     <div className="relative h-10">
       <div className="absolute top-4 h-2 rounded-full bg-surface-2 inset-x-0" />
       <div className="absolute top-4 h-2 rounded-full bg-gain/30" style={{ left: x(low), width: `calc(${x(high)} - ${x(low)})` }} />
       <div className="absolute top-3 h-4 w-0.5 bg-gain" style={{ left: x(mid) }} title={`Middle ${usd(mid)}`} />
-      <div className="absolute top-2 -translate-x-1/2 flex flex-col items-center" style={{ left: x(price) }}>
-        <div className="w-3 h-3 rounded-full bg-fg border-2 border-surface" />
-        <div className="text-[10.5px] num font-semibold mt-1 whitespace-nowrap">now {usd(price)}</div>
-      </div>
+      <div className="absolute top-2 -translate-x-1/2 w-3 h-3 rounded-full bg-fg border-2 border-surface" style={{ left: x(price) }} />
+      {/* The label stays inside the bar: anchored left near the left edge, right near the right edge. */}
+      <div className={`absolute top-6 text-[10.5px] num font-semibold whitespace-nowrap ${pos < 0.2 ? '' : pos > 0.8 ? '-translate-x-full' : '-translate-x-1/2'}`}
+        style={{ left: pos < 0.2 ? `max(0px, calc(${x(price)} - 6px))` : pos > 0.8 ? `min(100%, calc(${x(price)} + 6px))` : x(price) }}>now {usd(price)}</div>
     </div>
   )
 }
