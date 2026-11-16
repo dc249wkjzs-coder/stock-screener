@@ -188,8 +188,12 @@ export function buildContext(all) {
   for (const [ind, list] of Object.entries(byInd)) {
     industryMedianOpMargin[ind] = median(list.map((m) => m.operatingMargin));
     industryMedianGrossMargin[ind] = median(list.map((m) => realGm(m.grossMargin)));
-    const total = list.reduce((s, m) => s + (m.revenueTtm ?? m.revenue ?? 0), 0);
-    for (const m of list) if (total > 0 && (m.revenueTtm ?? m.revenue)) industryShare[m.symbol] = (m.revenueTtm ?? m.revenue) / total;
+    // Revenue is in each company's reporting currency (Ecopetrol in pesos, Toyota in yen), so revenue shares compare
+    // only USD reporters; the others fall back to their share of market value, which is always in dollars.
+    const usd = (m) => !m.reportedCurrency || m.reportedCurrency === 'USD';
+    const rev = (m) => (usd(m) ? (m.revenueTtm ?? m.revenue ?? 0) : 0);
+    const total = list.reduce((s, m) => s + rev(m), 0);
+    for (const m of list) if (total > 0 && rev(m) > 0) industryShare[m.symbol] = rev(m) / total;
     const capTotal = list.reduce((s, m) => s + (m.marketCap || 0), 0);
     for (const m of list) if (capTotal > 0 && m.marketCap) industryCapShare[m.symbol] = m.marketCap / capTotal;
     industrySize[ind] = list.length;

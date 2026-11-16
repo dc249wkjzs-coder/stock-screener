@@ -287,7 +287,7 @@ export const TERMS = {
     simple: 'How big a share of its industry\'s sales a company has.',
     like: 'The biggest shop in town gets the best deals from suppliers and the most customers walking past.',
     example: 'A company with $30B of sales in an industry where all listed companies sell $100B together has a 30% share → 2 points.',
-    rule: '30%+ of industry revenue = 2 points · 15%+ = 1.5 · 8%+ = 1 · less = 0. Measured among US-listed companies worth over $500M; market value is used if sales are missing.',
+    rule: '30%+ of industry revenue = 2 points · 15%+ = 1.5 · 8%+ = 1 · less = 0. Measured among US-listed companies worth over $500M. Sales are compared only between companies that report in US dollars; companies reporting in another currency (yen, euros, pesos) use their share of the industry\'s market value instead, as do companies with no sales figure.',
     watch: 'Big isn\'t the same as protected, and "industry" is the data provider\'s grouping, which can be broad.',
     where: 'The moat breakdown on each stock page.',
   },

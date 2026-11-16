@@ -115,17 +115,22 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
 - Forward P/E = latest close ÷ next-12-month consensus EPS (time-weighted FY1/FY2).
 - PEG = forward P/E ÷ expected EPS growth (annualised consensus FY0 → FY2).
 - Value signal = trailing P/E ≥20% below its own 5-yr average (Starter has no forward-P/E history).
-- Moat v4 (calculated 1–8, `shared/crossSection.js`): uses up to 10 annual reports (from `scr_history.fy`, the backtest
-  download; falls back to the 5 years in metrics) with **stock-based pay added back** to operating profit (`moatInputs`).
-  Parts: return on operating capital, median (0–3) + durability, weakest year after setting aside one bad year per five
-  (0–2) + consistency, share of years >15% (≥90% = 1, ≥70% = 0.5) + pricing power, gross margin vs industry median (0–2)
-  + operating margin premium over industry median (0–2) − erosion (3 oldest vs 3 newest years when 6+; up to −2)
-  − loss years (−1 each in last 3, older −0.5 each, max −1). Banks/insurers/REITs and <4 years of data: no score.
-  Capped at 8 (Jameson's scale: 9–10 only for near-irreplaceable positions like ASML). Gross margin ≥99.5% = no cost
-  of revenue reported (Mastercard) → industry level. Operating capital = total assets − cash/investments −
-  goodwill/intangibles − non-debt current liabilities, floored at 10% of tangible operating assets.
-  Calibration (`scripts/moat-eval.mjs`, Morningstar wide-moat list vs no-moat industries): 7+ catches 37/56 wide-moat
-  names (v3: 30) and 1/29 no-moat names. Known misses: merger accounting (LIN 2018 → 4–5), turnaround years (GEV).
+- **Moat v5** (live since 2026-11-16; full spec in the header comment of `shared/crossSection.js`). Three layers:
+  1. Calculated score 1–8 from up to 10 annual reports (`scr_history.fy`, falls back to the 5 years in metrics), stock-based
+     pay added back: return on capital 0–3, durability 0–2, consistency 0–1, pricing power 0–2, margin vs peers 0–2,
+     market position 0–2 (share of industry revenue among **USD reporters only**; non-USD reporters and missing sales use
+     market-value share), erosion 0 to −2, loss years. Banks/insurers/REITs and <5 years: no score.
+     Thresholds = `MOAT_DEFAULTS` merged with `scr_config` key 'moat' (no redeploy needed; the `score` run logs the
+     distribution in `scr_runs.detail.moat` and the options used in `detail.moatOpt`). **Live tuning: {"roic":[0.08,0.7]}**
+     (return on capital: ≤8% = 0, ≥70% = 3), chosen 2026-11-16 to bring calculated 8s to 190/2,188 = 8.7% (spec: 5–10%;
+     the default [0.08,0.40] gave 12.6%).
+  2. Structural caps from `scr_moat_flags` (data/moat-flags.json, `node scripts/load-moat-flags.mjs`).
+  3. Written rating blend (`finalMoat`, see below). Gross margin ≥99.5% = no cost of revenue reported (Mastercard) →
+     industry level. Operating capital = total assets − cash/investments − goodwill/intangibles − non-debt current
+     liabilities, floored at 10% of tangible operating assets.
+  Validation 2026-11-16 (Jameson's spec): final ≥7 for ASML 9, TSM 8, V 8, MCO 8, SPGI 8, MSFT 8; final ≤5 for HLF 3,
+  IRWD 3, VIRT 4, ATEN 4, TPR 5, SBC 4: all pass. Re-check after any threshold change.
+  Note: the backtest's replay (`finishDate`) has no industry revenue shares, so market position is 0 there.
 - **Written moat assessment** (`scr_moat_review`, source of truth `data/moat-reviews.json`, SQL via
   `node scripts/load-moat-reviews.mjs`): Claude rates 1–9 in chat on Morningstar's five sources (brand/patents,
   switching costs, network effect, cost advantage, efficient scale; each 0–2) with a one-line reason.
@@ -152,15 +157,10 @@ Vercel project `stock-screener` from this repo, env vars `VITE_SUPABASE_URL` and
 Add the screener's Vercel URL to Supabase → Authentication → URL Configuration → Redirect URLs so
 password-reset emails work there too.
 
-## Pending (2026-11-13): moat v5 on branch `moat-v5`, not yet on main
-Code is finished and tested on branch `moat-v5` (rebased on main). Still to do, in order (needs the Supabase connector):
-1. Apply the DB part: the "Moat v5" tail of `supabase/schema.sql` (durability/invalidation columns, rating 1–9 check,
-   `scr_moat_flags`, `scr_config`), then the review updates and flags (`node scripts/load-moat-reviews.mjs`,
-   `node scripts/load-moat-flags.mjs`; MRNA 3, MRK 5, BMY 4, PFE 4 re-rated).
-2. Redeploy `screener-sync` with all files (index.ts + lib fmp, metrics, crossSection, indicators, card, replay), run
-   `select public.scr_run('score')`, read `detail.moat` (distribution) in `scr_runs`.
-3. Validation (Jameson's spec, do not ship if any fails): final ≥7 for ASML, TSM, V, MCO, SPGI, MSFT; final ≤5 for HLF, IRWD,
-   VIRT, ATEN, TPR, SBC; calculated 8s = 5–10% of scored stocks (tune `scr_config` key 'moat', e.g. {"roic":[0.08,0.5]}).
-4. Merge `moat-v5` into main and push (the site reads the new columns, so only after step 1).
-Also open from earlier: verify the rules backtest after the history re-download (`scr_history_todo` empty, replay passes),
-and test whether moat buckets predicted returns.
+## Open items
+- Moat v5 shipped 2026-11-16 (DB migration `moat_v5`, 339 reviews + 13 flags loaded, `screener-sync` v11 deployed,
+  validation passed, merged to main). Fixed on the way: market position compared revenue across currencies (Ecopetrol's
+  pesos showed as 77% of its industry, XOM 0.2%).
+- Still open from earlier: verify the rules backtest after the history re-download (`scr_history_todo` empty, replay
+  passes), and test whether moat buckets predicted returns.
+- Scored stocks at calculated 1 are ~48%: mostly losses, erosion, or no market share; worth a look if the low end matters.

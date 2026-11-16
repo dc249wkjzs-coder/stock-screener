@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { moatScore, moatInputs, finalMoat } from '../shared/crossSection.js'
+import { moatScore, moatInputs, finalMoat, buildContext } from '../shared/crossSection.js'
 
 const ctx = { industryMedianOpMargin: { X: 0.10 }, industryMedianGrossMargin: { X: 0.40 }, industrySize: { X: 50 }, industryShare: { T: 0.35 } }
 const base = { symbol: 'T', industry: 'X', incomeYears: 6, grossMargin: 0.65, operatingMargin: 0.35,
@@ -83,4 +83,16 @@ test('Caps never lower the written rating; a cap below it is flagged for review'
 test('Customer concentration: −1 before rounding, and a cap of 6', () => {
   const r = finalMoat({ parts: P(7.4), flags: { big_customer: true } })
   assert.equal(r.calcBeforeCaps, 6); assert.equal(r.calc, 6)
+})
+
+test('market position: revenue shares compare USD reporters only; others use market-value share', () => {
+  const all = [
+    { symbol: 'XOM', industry: 'Oil', reportedCurrency: 'USD', revenueTtm: 400e9, marketCap: 700e9 },
+    { symbol: 'CVX', industry: 'Oil', reportedCurrency: 'USD', revenueTtm: 200e9, marketCap: 300e9 },
+    { symbol: 'EC', industry: 'Oil', reportedCurrency: 'COP', revenueTtm: 120000e9, marketCap: 30e9 },
+  ];
+  const c = buildContext(all);
+  assert.ok(Math.abs(c.industryShare.XOM - 2 / 3) < 1e-9)
+  assert.equal(c.industryShare.EC, undefined)
+  assert.ok(Math.abs(c.industryCapShare.EC - 30 / 1030) < 1e-9)
 })

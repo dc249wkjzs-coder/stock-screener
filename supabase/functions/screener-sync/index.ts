@@ -161,7 +161,7 @@ async function taskScore() {
     const { error } = await db.from('scr_stocks').upsert(out.slice(i, i + 300), { onConflict: 'symbol' });
     if (error) throw error;
   }
-  return { scored: out.length, withPrices: Object.keys(tech).length };
+  return { scored: out.length, withPrices: Object.keys(tech).length, moat: dist, moatOpt: opt };
 }
 
 const HISTORY_FROM = '2016-01-01';
