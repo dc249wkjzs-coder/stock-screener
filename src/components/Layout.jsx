@@ -5,6 +5,7 @@ import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
 import StockCart from '@/components/StockCart'
 import ThemeSwitch, { ThemeButton } from '@/components/ThemeSwitch'
+import BackToTop from '@/components/BackToTop'
 
 // The three main pages are steps in order; the rest are reference pages you can open any time.
 export const STEPS = [
@@ -109,6 +110,9 @@ export default function Layout() {
           {d.loading ? <div className="text-muted py-20 text-center">Loading…</div> : <Outlet />}
         </main>
       </div>
+
+      {/* The Stock finder has its own fixed bar at the bottom on phones (match count + Continue). */}
+      <BackToTop lift={loc.pathname === '/' ? 100 : 0} />
 
       {d.toast && (
         <div className="fixed z-50 left-1/2 -translate-x-1/2" style={{ bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }}>
