@@ -87,6 +87,11 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   HOLD = everything else, with "what would change it". Price and timing only; glossary `verdict`.
 - **Peer medians** (2026-11-16, `shared/peers.js`, `d.peers`): industry (sector if <5 usable) and market medians under each
   figure on the stock page with a tag (better/worse side of both, or between); multiples count positive values only. Tests `tests/peers.test.js`.
+- **Prospects** (`/prospects`, sidebar section "Discover" between the steps and Reference; `shared/prospects.js`,
+  `src/pages/Prospects.jsx`, tests `tests/prospects.test.js`): scans every stock; qualifies = profitable, moat 5+, net debt/EBITDA
+  ≤4x, not a Sell call, and a discount sign (≥10% below fair value middle, fwd P/E ≥15% under industry median, or P/E ≥20%
+  under own 5-yr avg). Score 0–100 = discount 35 + quality 30 + timing 20 + growth 15 (ranks among prospects). Sector filter,
+  "Buy calls only", best 3 per sector, + Add to cart. Glossary `prospects`.
 - `src/lib/assessment.js` – strengths/weaknesses lines, each a figure vs a fixed threshold.
 - `scripts/calibrate.mjs` – pulls live FMP data for given tickers and prints the verdicts
   (`FMP_API_KEY=... NODE_USE_ENV_PROXY=1 node scripts/calibrate.mjs NVDA FTNT ...`);

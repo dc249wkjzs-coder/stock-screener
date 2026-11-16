@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen, Briefcase } from 'lucide-react'
+import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen, Briefcase, Telescope } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
@@ -18,7 +18,9 @@ export const REFERENCE = [
   { to: '/learn', label: 'Definitions', icon: BookOpen },
   { to: '/status', label: 'Data status', icon: Activity },
 ]
-export const NAV = [...STEPS, ...REFERENCE]
+// Between the steps and the reference pages: the market-wide scan for opportunities.
+export const DISCOVER = [{ to: '/prospects', label: 'Prospects', hint: 'Opportunities in every sector', icon: Telescope }]
+export const NAV = [...STEPS, ...DISCOVER, ...REFERENCE]
 
 export default function Layout() {
   const d = useData()
@@ -58,6 +60,22 @@ export default function Layout() {
             ))}
           </ol>
           <div className="mx-3 my-3 border-t border-line" />
+          <div className="px-3 pb-1.5 text-[11px] font-semibold text-muted">Discover</div>
+          <div className="grid gap-0.5">
+            {DISCOVER.map((n) => (
+              <NavLink key={n.to} to={n.to}
+                className={({ isActive }) => `flex items-center gap-3 rounded-[10px] px-3 py-2 ${isActive ? 'bg-side-active' : 'hover:bg-side-active/60'}`}>
+                {({ isActive }) => (<>
+                  <n.icon size={18} strokeWidth={1.8} className="text-accent shrink-0" />
+                  <span className="min-w-0">
+                    <span className={`block text-[13.5px] leading-tight ${isActive ? 'font-semibold' : ''}`}>{n.label}</span>
+                    <span className="block text-[11.5px] text-muted leading-tight mt-0.5">{n.hint}</span>
+                  </span>
+                </>)}
+              </NavLink>
+            ))}
+          </div>
+          <div className="mx-3 my-3 border-t border-line" />
           <div className="px-3 pb-1.5 text-[11px] font-semibold text-muted">Reference</div>
           <div className="grid gap-0.5">
             {REFERENCE.map((n) => (
@@ -91,6 +109,10 @@ export default function Layout() {
               <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => `shrink-0 inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-3 py-1 text-[13px] ${isActive ? 'bg-fg text-bg font-medium' : 'text-fg'}`}>
                 {({ isActive }) => (<><span className={`w-5 h-5 grid place-items-center rounded-full text-[11px] font-semibold num ${isActive ? 'bg-accent text-accent-fg' : 'text-accent ring-1 ring-accent/40'}`}>{i + 1}</span>{n.label}{n.count && d.portfolio.length > 0 ? ` (${d.portfolio.length})` : ''}</>)}
               </NavLink>
+            ))}
+            <span aria-hidden className="shrink-0 mx-1 h-5 w-px bg-line" />
+            {DISCOVER.map((n) => (
+              <NavLink key={n.to} to={n.to} className={({ isActive }) => `shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] ${isActive ? 'bg-fg text-bg font-medium' : 'text-fg'}`}><n.icon size={14} />{n.label}</NavLink>
             ))}
             <span aria-hidden className="shrink-0 mx-1 h-5 w-px bg-line" />
             {REFERENCE.map((n) => (

@@ -14,7 +14,7 @@ export const GROUPS = [
   ['8 · When to buy: the chart', ['verdict', 'sma', 'sma-20', 'sma-50', 'sma-200', 'rsi', 'stochastic', 'fibonacci', 'swing', 'buy-zone', 'confirmation', 'buy-ladder', 'off-high', 'falling-knife', 'pullback']],
   ['9 · How risky is it?', ['beta', 'crash-test', 'risk-level']],
   ['10 · Company filings', ['financing', 'shelf', 'prospectus', 'atm', 'convertible', 'new-company']],
-  ['11 · Using this site', ['presets', 'investor-strategies', 'best-matches', 'portfolio-score', 'backtest']],
+  ['11 · Using this site', ['presets', 'investor-strategies', 'prospects', 'best-matches', 'portfolio-score', 'backtest']],
 ]
 
 export const TERMS = {
@@ -104,6 +104,15 @@ export const TERMS = {
     rule: 'Under 1 = cheap for its growth. 1–2 = fair. 2–3 = expensive. Over 3 = very expensive.',
     watch: 'Only as good as the growth forecast. Made popular by the famous fund manager Peter Lynch.',
     where: 'The "PEG" box, the Results table and each stock page.',
+  },
+  prospects: {
+    term: 'Prospects and the opportunity score',
+    simple: 'The Prospects page scans every stock in every sector for a sound business at a discount, then ranks them with an opportunity score from 0 to 100.',
+    like: 'A shortlist of good shops having a sale, sorted by how good the shop is and how big the discount.',
+    example: 'A company with moat 8, net cash, 25% below its fair value and in a buy zone scores near the top; one with moat 5 and only a P/E below its 5-year average scores lower.',
+    rule: 'To qualify: profitable, moat 5+, net debt at most 4x EBITDA, not a Sell call, and at least one discount sign (10%+ below fair value, forward P/E 15%+ under its industry median, or P/E 20%+ under its own 5-year average). Score = discount 35 + quality (moat, margin, debt) 30 + timing (Fibonacci entry) 20 + growth (EPS and sales) 15, each ranked against the other prospects.',
+    watch: 'Cheap stocks are sometimes cheap for a reason the numbers don\'t show yet. Read the stock page (and the moat\'s "what would break it") before buying.',
+    where: 'The Prospects page, between "Build a portfolio" and "Reference".',
   },
   'peer-median': {
     term: 'Industry and market medians',

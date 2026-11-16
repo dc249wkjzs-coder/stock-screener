@@ -14,6 +14,7 @@ import Stock from './pages/Stock'
 import Status from './pages/Status'
 import Learn from './pages/Learn'
 import Portfolio from './pages/Portfolio'
+import Prospects from './pages/Prospects'
 
 const arrivedToSetPassword = /type=(invite|recovery)/.test(window.location.hash)
 
@@ -46,6 +47,7 @@ function App() {
             <Route path="results" element={<Results />} />
             <Route path="lookup" element={<Lookup />} />
             <Route path="portfolio" element={<Portfolio />} />
+            <Route path="prospects" element={<Prospects />} />
             <Route path="backtest" element={<Backtest />} />
             <Route path="stock/:symbol" element={<Stock />} />
             <Route path="status" element={<Status />} />
