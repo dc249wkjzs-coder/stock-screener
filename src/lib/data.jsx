@@ -38,7 +38,7 @@ const saveDemoPortfolio = (pf) => { try { localStorage.setItem(DEMO_PF_KEY, JSON
 const PASS = { overall: 'pass', pillars: {}, missing: [] }
 
 export function DataProvider({ children }) {
-  const [state, setState] = useState({ loading: true, error: null, cards: [], pending: [], overrides: {}, ai: {}, reviews: {}, flags: {}, presets: [], portfolio: [], lastScored: null })
+  const [state, setState] = useState({ loading: true, error: null, cards: [], etfCards: [], pending: [], overrides: {}, ai: {}, reviews: {}, flags: {}, presets: [], portfolio: [], lastScored: null })
   const [screen, setScreenState] = useState(loadScreen)
   const [toast, setToast] = useState(null)
   const flash = useCallback((msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200) }, [])
@@ -51,10 +51,10 @@ export function DataProvider({ children }) {
     try {
       if (DEMO) {
         const sample = await fetch('/sample.json').then((r) => r.json())
-        setState({ loading: false, error: null, cards: sample.cards, ai: sample.ai || {}, pending: [], overrides: {}, presets: [], portfolio: loadDemoPortfolio(), lastScored: sample.scoredAt })
+        setState({ loading: false, error: null, cards: sample.cards, etfCards: sample.etfs || [], ai: sample.ai || {}, pending: [], overrides: {}, presets: [], portfolio: loadDemoPortfolio(), lastScored: sample.scoredAt })
         return
       }
-      const [rows, pending, overrides, ai, presets, reviews, portfolio, flags] = await Promise.all([
+      const [rows, pending, overrides, ai, presets, reviews, portfolio, flags, etfRows] = await Promise.all([
         selectAll('scr_stocks', 'symbol,card,scored_at,fundamentals_at,roic:metrics->roicMedian', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')),
         // Stocks in the universe whose financials haven't been downloaded and scored yet.
         selectAll('scr_stocks', 'symbol,name', (q) => q.eq('active', true).is('card', null).order('symbol')),
@@ -64,10 +64,13 @@ export function DataProvider({ children }) {
         selectAll('scr_moat_review', 'symbol,rating,sources,why,durability,invalidation,rated_at,rated_by').catch(() => []),
         supabase.from('scr_portfolio').select('symbol,weight,added_at').order('added_at').then((r) => r.data || []),
         selectAll('scr_moat_flags', '*').catch(() => []),
+        // ETFs: their own finder, but they share Look up, the cart and My portfolio with stocks.
+        selectAll('scr_etfs', 'symbol,card', (q) => q.eq('active', true).not('card', 'is', null).order('symbol')).catch(() => []),
       ])
       setState({
         loading: false, error: null,
         cards: rows.map((r) => ({ ...r.card, roic: r.roic == null ? null : Number(r.roic), fundamentalsAt: r.fundamentals_at })),
+        etfCards: etfRows.map((r) => r.card),
         pending,
         ai: Object.fromEntries(ai.map((a) => [a.symbol, a])),
         overrides: Object.fromEntries(overrides.map((o) => [o.symbol, o])),
@@ -99,7 +102,9 @@ export function DataProvider({ children }) {
     return { ...s, fair: fairValue(s, DEFAULT_RULES), setup: entrySetup(s, PASS, DEFAULT_RULES, null) }
   }), [state.cards, state.overrides, state.ai, state.reviews, state.flags])
 
-  const bySymbol = useMemo(() => Object.fromEntries(stocks.map((s) => [s.symbol, s])), [stocks])
+  // ETFs get the same entry timing (Fibonacci buy zone, bounce check); no moat, fair value or P/E.
+  const etfs = useMemo(() => state.etfCards.map((c) => ({ ...c, kind: 'etf', setup: entrySetup(c, PASS, DEFAULT_RULES, null) })), [state.etfCards])
+  const bySymbol = useMemo(() => Object.fromEntries([...etfs, ...stocks].map((s) => [s.symbol, s])), [stocks, etfs])
   // Industry / sector / market medians, so the stock page can show each figure next to what is normal.
   const peers = useMemo(() => peerStats(stocks), [stocks])
 
@@ -180,6 +185,6 @@ export function DataProvider({ children }) {
     flash('Stock cart emptied')
   }
 
-  const value = { ...state, demo: DEMO, stocks, bySymbol, peers, screen, setScreen, toast, flash, reload: load, saveOverride, savePreset, deletePreset, inPortfolio, addToPortfolio, removeFromPortfolio, setWeights, clearPortfolio }
+  const value = { ...state, demo: DEMO, stocks, etfs, bySymbol, peers, screen, setScreen, toast, flash, reload: load, saveOverride, savePreset, deletePreset, inPortfolio, addToPortfolio, removeFromPortfolio, setWeights, clearPortfolio }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

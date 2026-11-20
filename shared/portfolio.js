@@ -22,8 +22,24 @@ export function resolveWeights(items) {
 export const PORTFOLIO_WEIGHTS = { quality: 0.3, growth: 0.2, value: 0.2, strength: 0.1, diversification: 0.2 };
 export const PORTFOLIO_LABELS = { quality: 'Quality', growth: 'Growth', value: 'Value', strength: 'Balance sheet', diversification: 'Diversification' };
 
-export function scorePortfolio(items, universe) {
-  const bySym = Object.fromEntries(universe.map((s) => [s.symbol, s]));
+// ETFs are welcome too (etfs = the ETF list): they count for diversification, sector mix, risk, dividends, entry
+// timing and cost; quality, growth, value and balance sheet are company measures, so those use the stocks only.
+const ETF_SPREAD_MAX = 50;   // an ETF counts as at most 50 equal holdings when working out the effective number
+const isEtf = (s) => s.kind === 'etf';
+// Where an ETF's money sits by sector: its own sector mix for stock funds; bonds and commodities as one bucket each.
+export function etfSectorMix(e) {
+  if (e.category === 'Bonds') return [{ name: 'Bonds', share: 1 }];
+  if (e.category === 'Commodities & crypto') return [{ name: 'Commodities & crypto', share: 1 }];
+  const list = (e.sectors || []).filter((x) => x.w > 0);
+  const sum = list.reduce((a, x) => a + x.w, 0);
+  if (!sum) return [{ name: 'Other (fund)', share: 1 }];
+  const out = list.map((x) => ({ name: x.s, share: x.w / Math.max(1, sum) }));
+  if (sum < 0.98) out.push({ name: 'Other (fund)', share: 1 - sum });
+  return out;
+}
+
+export function scorePortfolio(items, universe, etfs = []) {
+  const bySym = Object.fromEntries([...etfs, ...universe].map((s) => [s.symbol, s]));
   const held = items.filter((i) => bySym[i.symbol]);
   if (!held.length) return null;
   const w = resolveWeights(held);
@@ -39,12 +55,14 @@ export function scorePortfolio(items, universe) {
     fcf: rankWithin(universe, (s) => s.fcfYield),
     debt: rankWithin(universe, debtOf, true),
   };
-  const groupOf = (s) => ({
+  const groupOf = (s) => (isEtf(s) ? { quality: null, growth: null, value: null, strength: null } : {
     quality: R.moat[s.symbol] ?? null,
     growth: avg([R.eps[s.symbol], R.sales[s.symbol]]),
     value: avg([R.peg[s.symbol], R.fair[s.symbol], R.fcf[s.symbol]]),
     strength: s.gaapLossTtm ? 0 : R.debt[s.symbol] ?? null,
   });
+  const stockShare = H.filter((h) => !isEtf(h.s)).reduce((a, h) => a + h.w, 0);
+  const etfShare = 1 - stockShare;
   // Weighted average over the holdings that have the figure.
   const wavg = (get) => {
     let t = 0, ww = 0;
@@ -54,12 +72,19 @@ export function scorePortfolio(items, universe) {
   const wshare = (pred) => H.reduce((a, h) => a + (pred(h.s) ? h.w : 0), 0);
 
   // Diversification: effective number of holdings (1 / sum of squared weights) and the largest sector.
-  const effective = 1 / H.reduce((a, h) => a + h.w * h.w, 0);
+  // An ETF spreads its share over many companies, so it counts as up to 50 equal holdings.
+  const spread = (s) => (isEtf(s) ? Math.max(1, Math.min(ETF_SPREAD_MAX, s.holdingsCount || 1)) : 1);
+  const effective = 1 / H.reduce((a, h) => a + (h.w * h.w) / spread(h.s), 0);
   const sectors = {};
-  for (const h of H) sectors[h.s.sector || 'Unknown'] = (sectors[h.s.sector || 'Unknown'] || 0) + h.w;
+  for (const h of H) {
+    const mix = isEtf(h.s) ? etfSectorMix(h.s) : [{ name: h.s.sector || 'Unknown', share: 1 }];
+    for (const m of mix) sectors[m.name] = (sectors[m.name] || 0) + h.w * m.share;
+  }
   const sectorList = Object.entries(sectors).map(([name, share]) => ({ name, share })).sort((a, b) => b.share - a.share);
   const topSector = sectorList[0];
-  const biggest = [...H].sort((a, b) => b.w - a.w)[0];
+  // A broad fund at 40% is not a concentration risk; a single stock or a one-sector fund is.
+  const narrow = (s) => !isEtf(s) || s.category === 'Sector' || s.category === 'Leveraged / inverse';
+  const biggest = [...H].filter((h) => narrow(h.s)).sort((a, b) => b.w - a.w)[0] || null;
   const countPts = Math.min(1, Math.max(0, (effective - 1) / 11));            // 1 stock = 0, 12+ equal = 1
   const sectorPts = Math.min(1, Math.max(0, (1 - topSector.share) / 0.7));    // one sector = 0, largest ≤30% = 1
   const diversification = 0.5 * countPts + 0.5 * sectorPts;
@@ -71,7 +96,11 @@ export function scorePortfolio(items, universe) {
     strength: wavg((s) => groupOf(s).strength),
     diversification,
   };
-  const overall = Object.entries(PORTFOLIO_WEIGHTS).reduce((t, [k, wt]) => t + wt * (scores[k] ?? 0.4), 0);
+  // Stocks-only parts that are empty because the portfolio is all ETFs are left out (the rest re-weighted to 100%);
+  // otherwise a missing part counts as 0.4, as before.
+  const used = Object.entries(PORTFOLIO_WEIGHTS).filter(([k]) => !(stockShare === 0 && k !== 'diversification'));
+  const usedW = used.reduce((a, [, wt]) => a + wt, 0);
+  const overall = used.reduce((t, [k, wt]) => t + wt * (scores[k] ?? 0.4), 0) / usedW;
 
   // Figures for the strengths and weaknesses, with the market median beside each.
   const mkt = (get) => median(universe.map(get));
@@ -113,10 +142,11 @@ export function scorePortfolio(items, universe) {
   if (F.losses > 0.15) add(weaknesses, 'Balance sheet', `${pct(F.losses)} of the portfolio is in companies that lost money over the last 12 months.`);
   if (F.highDebt > 0.2) add(weaknesses, 'Balance sheet', `${pct(F.highDebt)} of the portfolio is in companies with debt above 3x EBITDA.`);
   if (F.netCash >= 0.4 && F.losses <= 0.1) add(strengths, 'Balance sheet', `${pct(F.netCash)} of the portfolio is in companies with more cash than debt.`);
-  if (H.length < 5) add(weaknesses, 'Diversification', `Only ${H.length} stock${H.length === 1 ? '' : 's'}: one bad result moves the whole portfolio.`);
-  else if (effective >= 10 && topSector.share <= 0.35) add(strengths, 'Diversification', `Well spread: ${H.length} stocks, largest sector ${topSector.name} at ${pct(topSector.share)}.`);
+  const word = etfShare > 0 ? 'holding' : 'stock';
+  if (effective < 5) add(weaknesses, 'Diversification', `Only ${H.length} ${word}${H.length === 1 ? '' : 's'}: one bad result moves the whole portfolio.`);
+  else if (effective >= 10 && topSector.share <= 0.35) add(strengths, 'Diversification', `Well spread: ${H.length} ${word}s${etfShare > 0 ? ` (worth about ${Math.round(effective)} equal stocks, counting what the ETFs hold)` : ''}, largest sector ${topSector.name} at ${pct(topSector.share)}.`);
   if (topSector.share > 0.4 && H.length > 1) add(weaknesses, 'Diversification', `${pct(topSector.share)} in one sector (${topSector.name}): a slump in that sector hits most of the portfolio.`);
-  if (biggest.w > 0.25 && H.length > 1) add(weaknesses, 'Diversification', `${biggest.s.symbol} is ${pct(biggest.w)} of the portfolio on its own.`);
+  if (biggest && biggest.w > 0.25 && H.length > 1) add(weaknesses, 'Diversification', `${biggest.s.symbol} is ${pct(biggest.w)} of the portfolio on its own.`);
   if (F.beta != null) {
     if (F.beta >= 1.3) add(weaknesses, 'Risk', `Swings more than the market: average beta ${F.beta.toFixed(2)} (market = 1.00), so a 10% market fall has meant about ${(F.beta * 10).toFixed(0)}% here.`);
     else if (F.beta <= 0.9) add(strengths, 'Risk', `Steadier than the market: average beta ${F.beta.toFixed(2)} (market = 1.00).`);
@@ -130,5 +160,17 @@ export function scorePortfolio(items, universe) {
   if (F.inZone.length) add(strengths, 'Entry timing', `At a buy level now: ${F.inZone.join(', ')}.`);
   if (F.extended.length >= Math.max(2, H.length / 2)) add(weaknesses, 'Entry timing', `Near their highs (extended): ${F.extended.join(', ')}. Buying all now means paying top-of-range prices.`);
 
-  return { n: H.length, weights: w, effective, sectors: sectorList, scores, overall, strengths, weaknesses, figures: F, risk: riskProfile(H.map((h) => h.s)) };
+  // Cost: what the ETFs charge each year, weighted by their share (stocks cost nothing to hold).
+  const etfH = H.filter((h) => isEtf(h.s) && h.s.expenseRatio != null);
+  const etfW = etfH.reduce((a, h) => a + h.w, 0);
+  const cost = etfW > 0 ? { etfAvg: etfH.reduce((a, h) => a + h.w * h.s.expenseRatio, 0) / etfW, whole: etfH.reduce((a, h) => a + h.w * h.s.expenseRatio, 0) } : null;
+  if (cost) {
+    const per10k = (x) => `$${Math.round(x * 10000)}`;
+    if (cost.etfAvg <= 0.0015) add(strengths, 'Cost', `Low-cost funds: the ETFs charge ${pct(cost.etfAvg, 2)} a year on average (${per10k(cost.etfAvg)} per $10,000).`);
+    else if (cost.etfAvg >= 0.005) add(weaknesses, 'Cost', `Pricey funds: the ETFs charge ${pct(cost.etfAvg, 2)} a year on average (${per10k(cost.etfAvg)} per $10,000), taken every year whatever they return.`);
+  }
+  const lev = H.filter((h) => isEtf(h.s) && h.s.leveraged).map((h) => h.s.symbol);
+  if (lev.length) add(weaknesses, 'Risk', `Leveraged or inverse funds (${lev.join(', ')}): built for single days; held longer they can lose money even when the market ends flat.`);
+
+  return { n: H.length, nEtf: H.filter((h) => isEtf(h.s)).length, stockShare, etfShare, cost, weights: w, effective, sectors: sectorList, scores, overall, strengths, weaknesses, figures: F, risk: riskProfile(H.map((h) => h.s)) };
 }

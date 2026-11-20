@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen, Briefcase, Telescope } from 'lucide-react'
+import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen, Briefcase, Telescope, Layers } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
@@ -14,12 +14,15 @@ export const STEPS = [
   { to: '/portfolio', label: 'My portfolio', hint: 'Score your picks', icon: Briefcase, count: true },
 ]
 export const REFERENCE = [
-  { to: '/lookup', label: 'Look up a stock', icon: Search },
+  { to: '/lookup', label: 'Look up a stock or ETF', icon: Search },
   { to: '/learn', label: 'Definitions', icon: BookOpen },
   { to: '/status', label: 'Data status', icon: Activity },
 ]
 // Between the steps and the reference pages: the market-wide scan for opportunities.
-export const DISCOVER = [{ to: '/prospects', label: 'Prospects', hint: 'Opportunities in every sector', icon: Telescope }]
+export const DISCOVER = [
+  { to: '/prospects', label: 'Prospects', hint: 'Opportunities in every sector', icon: Telescope },
+  { to: '/etfs', label: 'ETF finder', hint: 'Funds by cost, mix and timing', icon: Layers },
+]
 export const NAV = [...STEPS, ...DISCOVER, ...REFERENCE]
 
 export default function Layout() {

@@ -6,7 +6,7 @@ import { Panel, Empty } from '@/components/ui'
 import { SetupChip, fx, fp, fn, usd, cap } from '@/components/pillarUi'
 import { scorePortfolio, PORTFOLIO_LABELS, PORTFOLIO_WEIGHTS } from '@shared/portfolio.js'
 import RiskMeter from '@/components/RiskMeter'
-import { Info } from '@/components/Term'
+import Term, { Info } from '@/components/Term'
 import PastPerformance from '@/components/PastPerformance'
 
 const GRADES = [[80, 'Excellent'], [65, 'Strong'], [50, 'Average'], [35, 'Below average'], [0, 'Weak']]
@@ -42,7 +42,7 @@ export default function Portfolio() {
   const pastRef = useRef(null)
   useEffect(() => { if (past) pastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, [past])
   const navigate = useNavigate()
-  const result = useMemo(() => scorePortfolio(d.portfolio, d.stocks), [d.portfolio, d.stocks])
+  const result = useMemo(() => scorePortfolio(d.portfolio, d.stocks, d.etfs), [d.portfolio, d.stocks, d.etfs])
   const rows = d.portfolio.map((p) => ({ ...p, s: d.bySymbol[p.symbol] })).filter((r) => r.s)
   const missing = d.portfolio.filter((p) => !d.bySymbol[p.symbol])
 
@@ -50,8 +50,8 @@ export default function Portfolio() {
     return (
       <div className="grid gap-5">
         <h1 className="text-2xl font-semibold tracking-tight">My portfolio</h1>
-        <Empty title="No stocks yet" action={<div className="flex gap-2 justify-center"><Link className="btn btn-primary" to="/results">Go to Results</Link><Link className="btn" to="/lookup"><Search size={14} /> Look up a stock</Link></div>}>
-          Your stock cart is empty. Press <span className="inline-grid place-items-center w-5 h-5 rounded border border-line align-middle"><Plus size={12} /></span> next to any stock (in Results, Best matches, Look up a stock or on a stock's page), or use the Stock cart at the top right, then press Check out. The page then scores the whole group and lists its strengths and weaknesses.
+        <Empty title="No stocks yet" action={<div className="flex flex-wrap gap-2 justify-center"><Link className="btn btn-primary" to="/results">Go to Results</Link><Link className="btn" to="/etfs">ETF finder</Link><Link className="btn" to="/lookup"><Search size={14} /> Look up a stock or ETF</Link></div>}>
+          Your stock cart is empty. Press <span className="inline-grid place-items-center w-5 h-5 rounded border border-line align-middle"><Plus size={12} /></span> next to any stock (in Results, Best matches, the ETF finder, Look up or on a stock's or ETF's page), or use the Stock cart at the top right, then press Check out. The page then scores the whole group and lists its strengths and weaknesses.
         </Empty>
       </div>
     )
@@ -74,7 +74,7 @@ export default function Portfolio() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My portfolio</h1>
-          <div className="text-[13px] text-muted mt-1">{rows.length} stock{rows.length === 1 ? '' : 's'} · {anySet ? 'your own weights' : 'equal weights'} · from your stock cart · a planning list, not real holdings</div>
+          <div className="text-[13px] text-muted mt-1">{result?.nEtf ? `${rows.length - result.nEtf} stock${rows.length - result.nEtf === 1 ? '' : 's'} and ${result.nEtf} ETF${result.nEtf === 1 ? '' : 's'}` : `${rows.length} stock${rows.length === 1 ? '' : 's'}`} · {anySet ? 'your own weights' : 'equal weights'} · from your stock cart · a planning list, not real holdings</div>
         </div>
         <div className="flex flex-wrap gap-2">
           {anySet && <button className="btn" onClick={() => d.setWeights(Object.fromEntries(d.portfolio.map((p) => [p.symbol, null])))}>Reset to equal weights</button>}
@@ -95,10 +95,18 @@ export default function Portfolio() {
               </div>
               <div className="grid gap-3">
                 {Object.keys(PORTFOLIO_WEIGHTS).map((k) => (
-                  <Bar key={k} label={PORTFOLIO_LABELS[k]} value={result.scores[k]} note={`${PORTFOLIO_WEIGHTS[k] * 100}% of score`} />
+                  <Bar key={k} label={PORTFOLIO_LABELS[k]} value={result.scores[k]} note={result.stockShare === 0 && k !== 'diversification' ? 'stocks only, none held' : `${PORTFOLIO_WEIGHTS[k] * 100}% of score`} />
                 ))}
               </div>
             </div>
+            {result.nEtf > 0 && (
+              <p className="text-[12.5px] text-muted mt-4 pt-3 border-t border-line">
+                {result.stockShare > 0
+                  ? <>Quality, growth, value and balance sheet are company measures, so they use your stocks only ({fp(result.stockShare)} of the portfolio). </>
+                  : <>Quality, growth, value and balance sheet are company measures and this portfolio is all ETFs, so the score is diversification alone. </>}
+                The ETFs count for diversification (through their sector mix), risk, dividends, entry timing and cost.
+              </p>
+            )}
           </Panel>
           <div className="grid gap-5 md:grid-cols-2">
             <Lines title="Strengths" icon={ThumbsUp} tone="text-gain" items={result.strengths} empty="Nothing stands out above the market yet." />
@@ -117,7 +125,13 @@ export default function Portfolio() {
                 </div>
               ))}
             </div>
-            <p className="text-[12px] text-faint mt-3">Effective number of stocks: {fn(result.effective, 1)} (counts uneven weights: two stocks at 90/10 behave like 1.2).</p>
+            <p className="text-[12px] text-faint mt-3">Effective number of stocks: {fn(result.effective, 1)} (counts uneven weights: two stocks at 90/10 behave like 1.2{result.nEtf ? '; an ETF counts as up to 50 stocks, and its money is split over sectors by its own sector mix' : ''}).</p>
+            {result.cost && (
+              <div className="mt-4 pt-4 border-t border-line">
+                <h3 className="font-semibold text-[14px] mb-1"><Term id="expense-ratio">Fund costs</Term></h3>
+                <p className="text-[13px]">The ETFs charge <b className="num">{fp(result.cost.etfAvg, 2)}</b> a year on average. Across the whole portfolio that is <span className="num">{fp(result.cost.whole, 3)}</span>, about <span className="num">${(result.cost.whole * 10000).toFixed(result.cost.whole * 10000 < 10 ? 2 : 0)}</span> a year per $10,000 (stocks cost nothing to hold).</p>
+              </div>
+            )}
             </div>
           </Panel>
         </div>
@@ -131,7 +145,7 @@ export default function Portfolio() {
       )}
 
       <div className="grid gap-5">
-        <Panel title="Stocks" subtitle="Use − / + to change a stock's share, or type a %. Stocks you haven't set share what's left equally." pad={false}>
+        <Panel title={result?.nEtf ? 'Stocks and ETFs' : 'Stocks'} subtitle="Use − / + to change a stock's share, or type a %. Stocks you haven't set share what's left equally." pad={false}>
           <div className="overflow-x-auto">
             <table className="grid-table">
               <thead><tr>
@@ -152,11 +166,15 @@ export default function Portfolio() {
                       </div>
                       {weight == null && <div className="text-[10.5px] text-faint">equal share</div>}
                     </td>
+                    {s.kind === 'etf' ? (
+                      <td colSpan={5} className="text-left! text-[12.5px] text-muted"><b className="text-accent">ETF</b> · {s.category}{s.expenseRatio != null ? ` · costs ${fp(s.expenseRatio, 2)} a year` : ''}{s.holdingsCount ? ` · ${s.holdingsCount.toLocaleString()} holdings` : ''}</td>
+                    ) : (<>
                     <td className="num font-semibold">{s.moatUsed ?? '—'}{s.moatUnverified && <div className="text-[10.5px] font-normal text-warn" title="Unverified — numbers only: no written assessment yet, so capped at 6">unverified</div>}</td>
                     <td className="num">{fx(s.forwardPE)}</td>
                     <td className="num">{fx(s.peg, 2)}</td>
                     <td className="num">{fp(s.epsGrowth)}</td>
                     <td className="num">{s.netDebtToEbitda != null && s.netDebtToEbitda < 0 ? <span className="text-gain">net cash</span> : fx(s.netDebtToEbitda)}</td>
+                    </>)}
                     <td className="num">{fn(s.beta, 2)}</td>
                     <td className="text-left!"><SetupChip setup={s.setup} /></td>
                     <td className="num">{usd(s.price)}<div className="text-[11px] text-muted">{cap(s.marketCap)}</div></td>

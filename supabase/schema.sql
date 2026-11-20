@@ -22,7 +22,7 @@ create table if not exists public.scr_stocks (
 create index if not exists scr_stocks_fund_idx on public.scr_stocks (active, fundamentals_at nulls first);
 
 create table if not exists public.scr_prices (
-  symbol text primary key references public.scr_stocks(symbol) on delete cascade,
+  symbol text primary key,   -- a stock or an ETF (no foreign key since ETFs were added, 2026-11-20)
   dates date[] not null default '{}',
   closes double precision[] not null default '{}',
   backfilled_at timestamptz
@@ -182,3 +182,20 @@ alter table public.scr_moat_flags enable row level security;
 create policy "read moat flags" on public.scr_moat_flags for select to authenticated using (true);
 create table if not exists public.scr_config (key text primary key, value jsonb not null, updated_at timestamptz not null default now());
 alter table public.scr_config enable row level security;   -- server only (no policies)
+
+-- ---------- ETFs (2026-11-20). Own finder; share Look up, the cart and My portfolio with stocks.
+-- Filled by screener-sync tasks 'etfs' (list + closes) and 'etfinfo' (cost, sector + country mix); card built by 'score'.
+create table if not exists public.scr_etfs (symbol text primary key, name text, issuer text, asset_class text, exchange text,
+  expense_ratio numeric, aum numeric, aum_info numeric, holdings_count int, inception date, avg_volume numeric, price numeric, beta numeric,
+  last_dividend numeric, sectors jsonb, countries jsonb, description text, website text, active boolean not null default true,
+  price_at timestamptz, info_at timestamptz, error text, card jsonb, scored_at timestamptz);
+alter table public.scr_etfs enable row level security;
+drop policy if exists "read etfs" on public.scr_etfs;
+create policy "read etfs" on public.scr_etfs for select to authenticated using (true);
+alter table public.scr_prices drop constraint if exists scr_prices_symbol_fkey;
+
+-- Weekly history (5Y chart, "what if I bought") for stocks and ETFs, oldest first, biggest first.
+create or replace function public.scr_history_todo(n integer) returns setof text language sql stable security definer set search_path to 'public' as $$
+  select t.symbol from (select s.symbol, s.market_cap from scr_stocks s where s.active union all select e.symbol, e.aum from scr_etfs e where e.active) t
+  left join scr_history h using (symbol) where h.fetched_at is null or h.fetched_at < now() - interval '30 days'
+  order by h.fetched_at nulls first, t.market_cap desc nulls last limit n $$;

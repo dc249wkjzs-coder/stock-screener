@@ -5,10 +5,12 @@
 //   ?task=score         daily: technicals, moat score, Magic Formula rank, scorecard rows
 //   ?task=history       12 years of annual reports + weekly prices per stock (for the backtest), refreshed monthly
 //   ?task=replay        rebuilds past quarterly snapshots from that history (pass 1 per stock, pass 2 per date)
+//   ?task=etfs          daily: ETF list (> $500M) + today's close; ?task=etfinfo weekly fund details (cost, mix)
 // Auth: header x-job-token must equal the screener_job_token secret in Vault.
 // lib/ is a copy of the repo's shared/ folder (scripts/sync-function-lib.sh).
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { fmpGet, fetchUniverse, fetchFundamentals, fetchPriceHistory, fetchHistory, classifyFiling, callCount, setRateLimit } from './lib/fmp.js';
+import { fmpGet, fetchUniverse, fetchFundamentals, fetchPriceHistory, fetchHistory, classifyFiling, callCount, setRateLimit, fetchEtfUniverse, fetchEtfInfo } from './lib/fmp.js';
+import { etfInfoFields, makeEtfCard } from './lib/etf.js';
 import { buildHistory, snapshotDates, stockSnapshots, finishDate } from './lib/replay.js';
 import { buildMetrics } from './lib/metrics.js';
 import { buildContext, moatScore, moatInputs, magicFormulaRanks, MOAT_DEFAULTS } from './lib/crossSection.js';
@@ -64,6 +66,58 @@ async function taskUniverse(key: string) {
     appended += data as number;
   }
   return { stocks: rows.length, inactive: gone.length, newStocks: fresh.length, appended, date };
+}
+
+// ETFs, daily after the close: the fund list (> $500M) with today's price and size, new funds queued for price history,
+// and today's close appended to each fund's stored history (same scr_prices table as stocks).
+async function taskEtfs(key: string) {
+  const list = await fetchEtfUniverse(key);
+  const now = new Date().toISOString();
+  const rows = list.map((u: any) => ({ symbol: u.symbol, name: u.companyName, aum: u.marketCap, price: u.price, beta: u.beta,
+    last_dividend: u.lastAnnualDividend, avg_volume: u.avgVolume, exchange: u.exchangeShortName, active: true, price_at: now }));
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await db.from('scr_etfs').upsert(rows.slice(i, i + 500), { onConflict: 'symbol' });
+    if (error) throw error;
+  }
+  const live = new Set(rows.map((r: any) => r.symbol));
+  const known = await selectAll('scr_etfs', 'symbol,active');
+  const gone = known.filter((k) => k.active && !live.has(k.symbol)).map((k) => k.symbol);
+  if (gone.length) await db.from('scr_etfs').update({ active: false }).in('symbol', gone);
+  const priced = new Set((await selectAll('scr_prices', 'symbol')).map((p) => p.symbol));
+  const fresh = rows.filter((r: any) => !priced.has(r.symbol)).map((r: any) => ({ symbol: r.symbol }));
+  for (let i = 0; i < fresh.length; i += 500) await db.from('scr_prices').insert(fresh.slice(i, i + 500));
+  const q = await fmpGet('quote', { symbol: 'AAPL' }, key);
+  const date = q?.[0]?.timestamp ? nyDate(new Date(q[0].timestamp * 1000)) : nyDate();
+  let appended = 0;
+  const closes = list.map((u: any) => ({ symbol: u.symbol, date, close: u.price }));
+  for (let i = 0; i < closes.length; i += 400) {
+    const { data, error } = await db.rpc('scr_append_closes', { rows: closes.slice(i, i + 400) });
+    if (error) throw error;
+    appended += data as number;
+  }
+  return { etfs: rows.length, inactive: gone.length, newEtfs: fresh.length, appended, date };
+}
+
+// ETF details (cost, holdings count, sector and country mix), refreshed weekly: 2 calls per fund.
+async function taskEtfInfo(key: string, limit = 40) {
+  const stale = new Date(Date.now() - 7 * 864e5).toISOString();
+  const { data: todo, error } = await db.from('scr_etfs').select('symbol').eq('active', true)
+    .or(`info_at.is.null,info_at.lt.${stale}`).order('info_at', { ascending: true, nullsFirst: true }).limit(limit);
+  if (error) throw error;
+  let done = 0; const failed: string[] = [];
+  for (const { symbol } of todo || []) {
+    try {
+      const { info, countries, error: e } = await fetchEtfInfo(symbol, key);
+      const fields = etfInfoFields(info, countries);
+      await db.from('scr_etfs').update({ ...fields, info_at: new Date().toISOString(), error: info ? null : (e || 'no fund information') }).eq('symbol', symbol);
+      done++;
+    } catch (e) {
+      failed.push(`${symbol}: ${String(e).slice(0, 80)}`);
+      await db.from('scr_etfs').update({ info_at: new Date().toISOString(), error: String(e).slice(0, 200) }).eq('symbol', symbol);
+    }
+  }
+  const { count } = await db.from('scr_etfs').select('symbol', { count: 'exact', head: true }).eq('active', true).is('info_at', null);
+  return { done, failed, remaining: count };
 }
 
 async function taskBackfill(key: string, limit = 150) {
@@ -161,7 +215,14 @@ async function taskScore() {
     const { error } = await db.from('scr_stocks').upsert(out.slice(i, i + 300), { onConflict: 'symbol' });
     if (error) throw error;
   }
-  return { scored: out.length, withPrices: Object.keys(tech).length, moat: dist, moatOpt: opt };
+  // 3) ETF cards: fund details + the same technicals (Fibonacci, RSI, averages, returns) as stocks.
+  const etfRows = await selectAll('scr_etfs', 'symbol,name,issuer,asset_class,expense_ratio,aum,aum_info,holdings_count,inception,sectors,countries,price,beta,last_dividend,avg_volume', (q) => q.eq('active', true));
+  const etfOut = etfRows.map((r: any) => ({ symbol: r.symbol, card: makeEtfCard(r, tech[r.symbol] || null), scored_at: now }));
+  for (let i = 0; i < etfOut.length; i += 300) {
+    const { error } = await db.from('scr_etfs').upsert(etfOut.slice(i, i + 300), { onConflict: 'symbol' });
+    if (error) throw error;
+  }
+  return { scored: out.length, etfs: etfOut.length, withPrices: Object.keys(tech).length, moat: dist, moatOpt: opt };
 }
 
 const HISTORY_FROM = '2016-01-01';
@@ -181,9 +242,11 @@ async function taskHistory(key: string, limit = 30) {
   }
   const { data: todo, error } = await db.rpc('scr_history_todo', { n: limit });
   if (error) throw error;
+  const { data: etfHit } = await db.from('scr_etfs').select('symbol').in('symbol', (todo || []) as string[]);
+  const isEtf = new Set((etfHit || []).map((x: any) => x.symbol));
   let done = 0; const failed: string[] = [];
   for (const symbol of (todo || []) as string[]) {
-    try { await saveHistory(symbol, buildHistory(await fetchHistory(symbol, key, { from: HISTORY_FROM }))); done++; }
+    try { await saveHistory(symbol, buildHistory(await fetchHistory(symbol, key, { from: HISTORY_FROM, statements: !isEtf.has(symbol) }))); done++; }
     catch (e) {
       failed.push(`${symbol}: ${String(e).slice(0, 80)}`);
       await db.from('scr_history').upsert({ symbol, fetched_at: new Date().toISOString(), error: String(e).slice(0, 200) });
@@ -243,6 +306,8 @@ async function run(task: string, params: URLSearchParams) {
     const key = await secret('fmp_api_key');
     if (params.get('rate')) setRateLimit(Number(params.get('rate')));
     if (task === 'universe') detail = await taskUniverse(key);
+    else if (task === 'etfs') detail = await taskEtfs(key);
+    else if (task === 'etfinfo') detail = await taskEtfInfo(key, Number(params.get('limit') || 40));
     else if (task === 'backfill') detail = await taskBackfill(key, Number(params.get('limit') || 150));
     else if (task === 'fundamentals') detail = await taskFundamentals(key, Number(params.get('limit') || 20));
     else if (task === 'score') detail = await taskScore();

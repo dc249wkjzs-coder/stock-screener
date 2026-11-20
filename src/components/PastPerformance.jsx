@@ -111,7 +111,7 @@ export default function PastPerformance({ holdings }) {
       <div className="mt-4 flex gap-2 text-[12.5px] text-muted">
         <TriangleAlert size={15} className="shrink-0 mt-0.5 text-warn" />
         <div className="grid gap-1">
-          <span>Hindsight: these are stocks you picked today, knowing how they did. Picking the same names back then would have meant knowing then what you know now, so past winners can make this look better than a real 5-year-old pick would have been.</span>
+          <span>Hindsight: these are stocks you picked today, knowing how they did. Picking the same names back then would have meant knowing then what you know now, so past winners can make this look better than a real pick made back then would have been.</span>
           {late.length > 0 && <span>{late.map((s) => s.symbol).join(', ')} started trading after {fmtDay(r.from)}; their share sat in cash (earning nothing) until their first week of trading.</span>}
           {none.length > 0 && <span>No stored price history for {none.map((s) => s.symbol).join(', ')}; their share is kept as cash.</span>}
         </div>

@@ -15,6 +15,7 @@ export const GROUPS = [
   ['9 · How risky is it?', ['beta', 'crash-test', 'risk-level']],
   ['10 · Company filings', ['financing', 'shelf', 'prospectus', 'atm', 'convertible', 'new-company']],
   ['11 · Using this site', ['presets', 'investor-strategies', 'prospects', 'best-matches', 'portfolio-score', 'backtest']],
+  ['12 · ETFs (funds)', ['etf', 'expense-ratio', 'fund-size', 'etf-category', 'leveraged-etf']],
 ]
 
 export const TERMS = {
@@ -697,6 +698,50 @@ export const TERMS = {
     rule: 'Beating both the S&P 500 and "all screener stocks" over 5 years is encouraging. Look at the worst drop too: could you have sat through it?',
     watch: 'The past doesn\'t guarantee the future. Only companies that still exist today are included (ones that failed or were bought are missing), which flatters results; "all screener stocks" has the same flaw, so compare with it. Boxes based on analyst forecasts use actual past growth instead. Prices only: no dividends, trading costs or taxes.',
     where: 'The "Test these settings on the past 5 years" button on Results.',
+  },
+  // ---------- 12 · ETFs (funds)
+  etf: {
+    term: 'ETF (exchange-traded fund)',
+    simple: 'A basket of many stocks (or bonds, or gold) that trades on the stock market as one ticker.',
+    like: 'A fruit basket instead of a single apple: one purchase, many pieces of fruit inside.',
+    example: 'Buying one share of SPY (a few hundred dollars) gives you a small piece of all 500 companies in the S&P 500 at once.',
+    rule: 'A broad, cheap ETF spreads your money over hundreds of companies, so one bad result barely moves it. A narrow ETF (one sector, one country) behaves more like a single bet.',
+    watch: 'An ETF has no single set of earnings, so this site shows no moat, fair value or P/E for it: only cost, size, what it holds by sector and country, and the price chart with buy levels.',
+    where: 'ETF finder, Look up, the stock cart and My portfolio.',
+  },
+  'expense-ratio': {
+    term: 'Expense ratio (cost)',
+    simple: 'The yearly fee an ETF takes from your money, as a % of what you hold.',
+    like: 'A small yearly membership fee, taken quietly from your balance instead of billed.',
+    example: 'A 0.03% fee on $10,000 is $3 a year. A 0.75% fee on the same $10,000 is $75 a year, every year, whether the fund does well or not.',
+    rule: 'Broad index ETFs often cost 0.03%–0.10%. Above about 0.50% the fund needs to do noticeably better to make up for it.',
+    watch: 'The fee is already taken out of the price you see, so it never shows as a bill. Over 20 years a 0.5% difference adds up to roughly 10% of the final amount.',
+    where: 'ETF pages, ETF finder (Max cost box), and the cost line on My portfolio.',
+  },
+  'fund-size': {
+    term: 'Fund size (assets under management)',
+    simple: 'How much money in total is invested in the ETF.',
+    like: 'How busy a shop is: a busy shop is unlikely to close next month.',
+    example: 'SPY holds hundreds of billions of dollars; a small niche ETF might hold $600 million.',
+    rule: 'Bigger funds are usually cheaper to trade (smaller gap between buy and sell prices) and less likely to be closed. The screener only lists ETFs above $500 million.',
+    where: 'ETF pages and the ETF finder (Min fund size box).',
+  },
+  'etf-category': {
+    term: 'ETF category',
+    simple: 'A rough label for what an ETF holds: Broad market, Sector, International, Bonds, Commodities & crypto, or Leveraged / inverse.',
+    like: 'The aisle signs in a supermarket: they tell you roughly what is on the shelf, not every item.',
+    example: 'An ETF with 70% in technology is labelled Sector (Technology). One with less than half its money in US companies is labelled International.',
+    rule: 'Worked out by the site from the fund\'s name, asset class, sector mix (60%+ in one sector = Sector) and country mix (under 50% US = International).',
+    watch: 'A label from fixed rules, not the fund company\'s own description; check the sector and country bars on the ETF page.',
+    where: 'ETF finder and ETF pages.',
+  },
+  'leveraged-etf': {
+    term: 'Leveraged and inverse ETFs',
+    simple: 'Funds that try to move 2x or 3x the daily move of an index (leveraged), or the opposite way (inverse).',
+    like: 'A see-saw with a longer arm: small pushes become big swings, both up and down.',
+    example: 'If the index rises 10% then falls 10% on the next day, it ends 1% down. A 3x fund rises 30% then falls 30% and ends 9% down.',
+    rule: 'Built for day traders. Held for months they can lose money even when the index ends where it started. The ETF finder hides them unless you tick the box.',
+    where: 'ETF finder (Show leveraged and inverse box).',
   },
 }
 

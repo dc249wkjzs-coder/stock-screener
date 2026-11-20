@@ -210,15 +210,17 @@ export const RISK_LEVELS = [
 
 export function riskProfile(stocks) {
   if (!stocks.length) return null;
+  // ETFs (My portfolio) count for volatility and past drops; company figures (losses, debt, P/E, moat) use the stocks.
+  const cos = stocks.filter((s) => s.kind !== 'etf');
   const beta = median(stocks.map((s) => s.beta));
-  const lossShare = stocks.filter((s) => s.gaapLossTtm).length / stocks.length;
+  const lossShare = cos.length ? cos.filter((s) => s.gaapLossTtm).length / cos.length : null;
   const debt = median(stocks.map((s) => (s.netDebtToEbitda == null ? null : Math.max(0, s.netDebtToEbitda))));
   const pe = median(stocks.map((s) => (s.forwardPE > 0 ? s.forwardPE : null)));
   const drop = median(stocks.map((s) => s.pullbackMax));
   const moat = median(stocks.map((s) => s.moatUsed ?? s.moat?.score));
   const factors = [
     { key: 'beta', label: 'Volatility', value: beta, text: beta == null ? null : `median beta ${beta.toFixed(2)} (the market = 1.00)`, score: band(beta, [0.8, 1.0, 1.2, 1.5]) },
-    { key: 'losses', label: 'Losses', value: lossShare, text: `${Math.round(lossShare * 100)}% of the stocks lost money (GAAP, last 12 months)`, score: band(lossShare, [0.0001, 0.05, 0.15, 0.30]) },
+    { key: 'losses', label: 'Losses', value: lossShare, text: `${Math.round(lossShare * 100)}% of the stocks lost money (GAAP, last 12 months)`, score: lossShare == null ? null : band(lossShare, [0.0001, 0.05, 0.15, 0.30]) },
     { key: 'debt', label: 'Debt', value: debt, text: debt == null ? null : debt === 0 ? 'median company has net cash' : `median net debt ${debt.toFixed(1)}x EBITDA`, score: band(debt, [1, 2, 3, 4]) },
     { key: 'valuation', label: 'Valuation', value: pe, text: pe == null ? null : `median forward P/E ${pe.toFixed(1)}`, score: band(pe, [15, 20, 30, 45]) },
     { key: 'drawdowns', label: 'Past drops', value: drop, text: drop == null ? null : `median deepest fall in ~2 years ${Math.round(-drop * 100)}%`, score: drop == null ? null : band(-drop, [0.15, 0.25, 0.35, 0.50]) },
@@ -227,7 +229,9 @@ export function riskProfile(stocks) {
   const score = factors.reduce((a, f) => a + f.score, 0) / factors.length;
   const level = RISK_LEVELS.find((l) => score < l.max);
   const drivers = [...factors].sort((a, b) => b.score - a.score);
-  return { score, level, factors, drivers, n: stocks.length, concentrated: stocks.length < 8 };
+  if (!factors.length) return null;
+  const broadFund = stocks.some((s) => s.kind === 'etf' && s.category !== 'Sector' && s.category !== 'Leveraged / inverse');
+  return { score, level, factors, drivers, n: stocks.length, concentrated: stocks.length < 8 && !broadFund };
 }
 
 // ---- URL <-> criteria (so a screen can be bookmarked).

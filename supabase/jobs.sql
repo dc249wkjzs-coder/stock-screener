@@ -22,7 +22,11 @@ select cron.schedule('screener-universe',     '15 22 * * 1-5',  $$select public.
 select cron.schedule('screener-fundamentals', '*/2 * * * *',    $$select public.scr_run('fundamentals', '&limit=25&rate=150')$$);
 -- Price history for new listings (idle once everything is loaded).
 select cron.schedule('screener-backfill',     '1-59/3 * * * *', $$select public.scr_run('backfill')$$);
--- Rebuild scores, technicals and scorecard rows (no FMP calls).
+-- ETFs (2026-11-20): the fund list + closes after the US close (2 calls), and fund facts (cost, sector and country
+-- mix: 2 calls per fund) for anything older than 7 days. 70 funds every 5 minutes at 60 calls/min.
+select cron.schedule('screener-etfs',         '20 22 * * 1-5',  $$select public.scr_run('etfs')$$);
+select cron.schedule('screener-etfinfo',      '3-59/5 * * * *', $$select public.scr_run('etfinfo', '&limit=70&rate=60')$$);
+-- Rebuild scores, technicals and scorecard rows for stocks and ETFs (no FMP calls).
 select cron.schedule('screener-score',        '50 * * * *',     $$select public.scr_run('score')$$);
 
 -- Turn the SEC filing reader on (SEC requires a name + real contact email):

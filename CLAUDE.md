@@ -9,7 +9,7 @@ Display and Licensing Agreement. Jameson knows; he doesn't want it public. Don't
 Sister project of Life Ledger (same Supabase project and login). Look: Apple-style theme (2026-11-13): system font
 (SF on Apple devices, Inter elsewhere), #f5f5f7 canvas, white 18px-radius cards, frosted light sidebar (`.glass`), one blue
 accent (#0071e3), pill buttons; all colours are tokens in `src/index.css` (light + dark). Light / Dark / Auto switch
-(`src/components/ThemeSwitch.jsx`, sidebar + phone bar) saved in localStorage `screener.theme`, applied early in index.html. Last updated: 2026-11-13.
+(`src/components/ThemeSwitch.jsx`, sidebar + phone bar) saved in localStorage `screener.theme`, applied early in index.html. Last updated: 2026-11-20 (ETFs).
 See the Life Ledger repo's CLAUDE.md for how to work with Jameson (simple steps, facts not opinions,
 never commit secrets, English).
 
@@ -92,6 +92,19 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   ≤4x, not a Sell call, and a discount sign (≥10% below fair value middle, fwd P/E ≥15% under industry median, or P/E ≥20%
   under own 5-yr avg). Score 0–100 = discount 35 + quality 30 + timing 20 + growth 15 (ranks among prospects). Sector filter,
   "Buy calls only", best 3 per sector, + Add to cart. Glossary `prospects`.
+- **ETFs** (2026-11-20): 1,168 US-listed ETFs over $500M in `scr_etfs` (list + closes: task `etfs`, weekdays 22:20 UTC; fund facts:
+  task `etfinfo`, 70 funds every 5 min, refresh after 7 days: `etf/info` + `etf/country-weightings`, 2 calls each). Card built by `score`
+  (`shared/etf.js` `makeEtfCard`: cost, size (`aum_info` = the fund's own AUM; the screener list's "market cap" is sometimes the
+  whole fund family, e.g. BMOP showed $419B), sector mix mapped to the stock sector names, country mix, category, dividend yield =
+  last annual dividend ÷ price, plus the same technicals/Fibonacci as stocks). `scr_prices` no longer has a foreign key to
+  `scr_stocks` (shared by both). Weekly history via `history` (no statements for ETFs; `scr_history_todo` includes ETFs).
+  Site: **ETF finder** (`/etfs`, sidebar Discover; `shared/etfScreen.js` boxes/presets/URL, `src/pages/EtfFinder.jsx`), ETF page
+  (`src/pages/Etf.jsx`, shown by `/stock/:symbol` when `kind === 'etf'`; PlanPanel in ETF mode = entry plan without fair value or
+  call), Look up and the cart search both. `d.stocks` stays stocks only; `d.etfs` the funds; `d.bySymbol` both.
+  My portfolio: `scorePortfolio(items, stocks, etfs)`: quality/growth/value/balance sheet use stocks only (all-ETF portfolio = diversification
+  alone); an ETF counts as up to 50 holdings in the effective number and spreads its weight by its sector mix (bonds/commodities one
+  bucket); cost line = weighted expense ratio; leveraged funds flagged. No holdings/overlap: ETF holdings need FMP Ultimate.
+  Tests `tests/etf.test.js`. Glossary section 12.
 - `src/lib/assessment.js` – strengths/weaknesses lines, each a figure vs a fixed threshold.
 - `scripts/calibrate.mjs` – pulls live FMP data for given tickers and prints the verdicts
   (`FMP_API_KEY=... NODE_USE_ENV_PROXY=1 node scripts/calibrate.mjs NVDA FTNT ...`);

@@ -15,10 +15,11 @@ export default function PlanPanel({ s, guide = null }) {
   const st = s.setup
   const fair = s.fair
   const down = downside(s)
-  const v = verdict(s)
+  const etf = s.kind === 'etf'
+  const v = etf ? null : verdict(s)
   return (
-    <Panel title="Valuation and entry plan" subtitle="Fixed rules applied to the data: a reading of the numbers, not a forecast or advice.">
-      <VerdictBox v={v} />
+    <Panel title={etf ? 'Entry plan' : 'Valuation and entry plan'} subtitle={etf ? 'Price and timing only: a fund has no single set of earnings to value, so there is no fair value or Buy/Hold/Sell call. Fixed rules, not advice.' : 'Fixed rules applied to the data: a reading of the numbers, not a forecast or advice.'}>
+      {!etf && <VerdictBox v={v} />}
       <div className={`rounded-xl border px-4 py-3 mb-5 ${TONE[st.status]}`}>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted"><Term id={st.status.startsWith('zone') ? 'confirmation' : st.status === 'fail' ? 'pillars' : 'buy-zone'}>{st.status.startsWith('zone') ? 'Entry timing' : SETUP[st.status].label}</Term></div>
         <div className="text-lg font-semibold mt-0.5">{st.title}</div>
@@ -36,8 +37,8 @@ export default function PlanPanel({ s, guide = null }) {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div>
+      <div className={`grid gap-6 ${etf ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
+        {!etf && <div>
           <div className="label mb-2"><Term id="fair-value">Fair value</Term></div>
           {fair && fair.mid != null ? (
             <>
@@ -67,7 +68,7 @@ export default function PlanPanel({ s, guide = null }) {
               </table>
             </>
           ) : <div className="text-muted text-[13px]">Not enough usable data for a fair value (needs earnings estimates, a DCF or analyst targets).{fair?.skipped?.length ? ` Left out: ${fair.skipped.map((m) => `${m.label} (${m.why})`).join('; ')}.` : ''}</div>}
-        </div>
+        </div>}
 
         <div>
           <div className="label mb-2"><Term id="buy-ladder">Buy levels</Term> (<Term id="fibonacci">Fibonacci</Term> only)</div>
@@ -87,7 +88,7 @@ export default function PlanPanel({ s, guide = null }) {
                 </tbody>
               </table>
               <div className="text-[12px] text-faint mt-2">
-                                Levels from the 38.2% retracement down to the swing low.{fair?.mid != null && st.ladder.some((l) => l.price < fair.mid) ? ` Every level shown is ${st.ladder.every((l) => l.price < fair.low) ? 'below the whole fair value range' : 'below the fair value middle'} ${usd(fair.mid)}` : ''}.
+                                Levels from the 38.2% retracement down to the swing low.{fair?.mid != null && st.ladder.some((l) => l.price < fair.mid) ? ` Every level shown is ${st.ladder.every((l) => l.price < fair.low) ? 'below the whole fair value range' : 'below the fair value middle'} ${usd(fair.mid)}.` : ''}
               </div>
             </>
           ) : <div className="text-muted text-[13px]">No Fibonacci levels at or below the price.</div>}

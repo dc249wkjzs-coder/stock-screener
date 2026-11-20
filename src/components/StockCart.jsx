@@ -35,10 +35,11 @@ export default function StockCart({ dark = false }) {
   const found = useMemo(() => {
     const t = q.trim().toUpperCase()
     if (!t) return []
-    const starts = d.stocks.filter((s) => s.symbol.startsWith(t))
-    const named = d.stocks.filter((s) => !s.symbol.startsWith(t) && s.name?.toUpperCase().includes(t))
+    const all = [...d.stocks, ...d.etfs]
+    const starts = all.filter((s) => s.symbol.startsWith(t))
+    const named = all.filter((s) => !s.symbol.startsWith(t) && s.name?.toUpperCase().includes(t))
     return [...starts.sort((a, b) => a.symbol.length - b.symbol.length || (b.marketCap || 0) - (a.marketCap || 0)), ...named.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0))].slice(0, 6)
-  }, [q, d.stocks])
+  }, [q, d.stocks, d.etfs])
 
   const checkout = () => { setOpen(false); navigate('/portfolio') }
 
@@ -59,14 +60,14 @@ export default function StockCart({ dark = false }) {
           </div>
 
           <div className="px-4 py-2.5 border-b border-line relative">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Add a stock: type a ticker or name"
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Add a stock or ETF: ticker or name"
               className="input py-1.5!" />
             {found.length > 0 && (
               <div className="mt-1.5 grid">
                 {found.map((s) => (
                   <div key={s.symbol} className="flex items-center gap-2 py-1.5 text-[13px]">
                     <span className="font-semibold w-14 shrink-0">{s.symbol}</span>
-                    <span className="flex-1 truncate text-muted">{s.name}</span>
+                    <span className="flex-1 truncate text-muted">{s.name}</span>{s.kind === 'etf' && <span className="text-[10px] font-bold text-accent">ETF</span>}
                     <PortfolioButton symbol={s.symbol} />
                   </div>
                 ))}

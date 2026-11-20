@@ -109,3 +109,20 @@ export async function fetchPriceHistory(symbol, apiKey, from) {
   const rows = await fmpGet('historical-price-eod/light', { symbol, from }, apiKey);
   return rows.map((r) => [r.date, r.price]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
 }
+
+// ETFs: the fund list (US-listed, fund size over a floor) with today's price, in one call.
+// FMP reports a fund's size (assets under management) in the marketCap field.
+export async function fetchEtfUniverse(apiKey, minAum = 500_000_000) {
+  const rows = await fmpGet('company-screener', {
+    isEtf: 'true', isActivelyTrading: 'true', marketCapMoreThan: String(minAum), limit: '10000',
+  }, apiKey);
+  return rows.filter((r) => r.price > 0 && r.isEtf && r.country === 'US');
+}
+
+// Two calls per ETF: fund information (cost, size, holdings count, sector mix) and country mix.
+// Starter plan has these; actual holdings (which stocks it owns) need FMP's top plan.
+export async function fetchEtfInfo(symbol, apiKey) {
+  const get = (path) => fmpGet(path, { symbol }, apiKey).catch((e) => ({ __error: String(e.message || e) }));
+  const [info, countries] = await Promise.all([get('etf/info'), get('etf/country-weightings')]);
+  return { info: Array.isArray(info) ? info[0] || null : null, countries: Array.isArray(countries) ? countries : [], error: info?.__error || null };
+}

@@ -2,7 +2,8 @@ import PortfolioButton from '@/components/PortfolioButton'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, Check, X } from 'lucide-react'
-import PriceChart from '@/components/PriceChart'
+import FibPanel from '@/components/FibPanel'
+import EtfView from '@/pages/Etf'
 import PlanPanel, { CALL_STYLE } from '@/components/PlanPanel'
 import { verdict } from '@shared/valuation.js'
 import { compare } from '@shared/peers.js'
@@ -27,7 +28,7 @@ export default function Stock() {
   const [detail, setDetail] = useState(null)
 
   useEffect(() => {
-    if (!s) return
+    if (!s || s.kind === 'etf') return
     if (DEMO) { setDetail({ metrics: s.metricsSample || null, prices: s.pricesSample || [] }); return }
     Promise.all([
       supabase.from('scr_stocks').select('metrics').eq('symbol', s.symbol).single(),
@@ -40,7 +41,8 @@ export default function Stock() {
 
   const waiting = !s && d.pending?.find((p) => p.symbol === symbol?.toUpperCase())
   if (waiting) return <Empty title={`${waiting.symbol} · ${waiting.name || ''}`}>This stock is in the screener, but its financials are still downloading (the first full load of all 2,350+ stocks takes a few hours). Check back later; nothing needs doing on your side.</Empty>
-  if (!s) return <Empty title={`${symbol} isn't in the screener`} action={<Link className="btn" to="/lookup">Look up another stock</Link>}>It may be below $500M market cap, not listed in the US, an ETF, or its data hasn't loaded yet.</Empty>
+  if (!s) return <Empty title={`${symbol} isn't in the screener`} action={<Link className="btn" to="/lookup">Look up another stock</Link>}>It may be below $500M market cap, not listed in the US, an ETF under $500M in assets, or its data hasn't loaded yet.</Empty>
+  if (s.kind === 'etf') return <EtfView s={s} />
   const screenChecks = checks(s, d.screen)
   const fits = screenChecks.length ? screenChecks.every((k) => k.ok) : null
   const m = detail?.metrics
@@ -267,44 +269,6 @@ function MoatPanel({ s }) {
         </div>
         <div className="text-[12px] text-faint">The numbers measure results (returns, margins, market share) and stop at 8; structural caps cover what the numbers can't see; the written assessment judges where the advantage comes from. Combined scores stop at 9: a 10 is yours to set.</div>
       </div>
-    </Panel>
-  )
-}
-
-function FibPanel({ s, prices }) {
-  const f = s.fib
-  const hi = f?.swingHigh.price, lo = f?.swingLow.price
-  const ma = (v) => { if (v == null || !s.price) return ''; const g = s.price / v - 1; return ` · price is ${fp(Math.abs(g), 1)} ${g >= 0 ? 'above' : 'below'}` }
-  return (
-    <Panel title="Chart, moving averages and Fibonacci entry levels"
-      subtitle={f ? `Swing low ${usd(lo)} on ${fdate(f.swingLow.date)} → swing high ${usd(hi)} on ${fdate(f.swingHigh.date)}, daily closes. The highlighted dashed line is the next support below the price.` : 'Not enough price history yet for Fibonacci levels.'}>
-      <PriceChart prices={prices} fib={f} symbol={s.symbol} />
-      {f && (
-        <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr] mt-5 pt-4 border-t border-line">
-          <table className="w-full text-[13px]">
-            <thead><tr className="text-muted text-[11px] uppercase tracking-wider"><th className="text-left pb-1">Level</th><th className="text-left pb-1 hidden sm:table-cell">Calculation</th><th className="text-right pb-1">Price</th><th className="text-right pb-1">vs now</th></tr></thead>
-            <tbody>
-              {f.levels.map((l) => (
-                <tr key={l.ratio} className={`border-t border-line/60 ${f.nextSupport?.ratio === l.ratio ? 'font-semibold text-accent' : ''}`}>
-                  <td className="py-1.5 num">{(l.ratio * 100).toFixed(1)}%{l.ratio === 1 ? ' (swing low)' : ''}</td>
-                  <td className="py-1.5 num text-muted text-[12px] hidden sm:table-cell">{hi.toFixed(2)} − {l.ratio} × {f.range.toFixed(2)}</td>
-                  <td className="py-1.5 num text-right">{usd(l.price)}</td>
-                  <td className="py-1.5 num text-right">{fp(l.price / s.price - 1, 1)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="text-[13px] grid gap-1.5 content-start">
-            <div><span className="text-muted"><Term id="fibonacci">Next support</Term>:</span> {f.nextSupport ? `${(f.nextSupport.ratio * 100).toFixed(1)}% at ${usd(f.nextSupport.price)} (${fp(f.nextSupport.price / s.price - 1, 1)})` : f.belowSwing ? `none, the price is below the swing low (${usd(lo)})` : 'none'}</div>
-            <div><span className="text-muted">Retraced:</span> {fp(f.retraced, 0)} of the swing</div>
-            <div><span className="text-muted"><Term id="sma-50">50-day average</Term>:</span> {usd(s.sma50)}{ma(s.sma50)}</div>
-            <div><span className="text-muted"><Term id="sma-200">200-day average</Term>:</span> {usd(s.sma200)}{ma(s.sma200)}</div>
-            <div><span className="text-muted"><Term id="rsi">RSI (14)</Term>:</span> {fn(s.rsi14)}{s.rsi14 < 30 ? ' · oversold' : s.rsi14 > 70 ? ' · overbought' : ''}</div>
-            {f.widened && <div className="text-[12.5px] text-muted">The 52-week swing was broken, so the swing low is the lowest close in the last ~2 years.</div>}
-            <div className="text-[12px] text-faint">Formula: level = swing high − ratio × (swing high − swing low).</div>
-          </div>
-        </div>
-      )}
     </Panel>
   )
 }
