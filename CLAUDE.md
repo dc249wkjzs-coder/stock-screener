@@ -9,7 +9,7 @@ Display and Licensing Agreement. Jameson knows; he doesn't want it public. Don't
 Sister project of Life Ledger (same Supabase project and login). Look: Apple-style theme (2026-11-13): system font
 (SF on Apple devices, Inter elsewhere), #f5f5f7 canvas, white 18px-radius cards, frosted light sidebar (`.glass`), one blue
 accent (#0071e3), pill buttons; all colours are tokens in `src/index.css` (light + dark). Light / Dark / Auto switch
-(`src/components/ThemeSwitch.jsx`, sidebar + phone bar) saved in localStorage `screener.theme`, applied early in index.html. Last updated: 2026-11-20 (ETFs).
+(`src/components/ThemeSwitch.jsx`, sidebar + phone bar) saved in localStorage `screener.theme`, applied early in index.html. Last updated: 2026-11-25 (Market today).
 See the Life Ledger repo's CLAUDE.md for how to work with Jameson (simple steps, facts not opinions,
 never commit secrets, English).
 
@@ -105,6 +105,16 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   alone); an ETF counts as up to 50 holdings in the effective number and spreads its weight by its sector mix (bonds/commodities one
   bucket); cost line = weighted expense ratio; leveraged funds flagged. No holdings/overlap: ETF holdings need FMP Ultimate.
   Tests `tests/etf.test.js`. Glossary section 12.
+- **Market today** (2026-11-25, `/market`, first item under Discover; `src/pages/MarketToday.jsx`, `shared/market.js`, tests
+  `tests/market.test.js`, glossary section 13). Edge Function `market-today` (verify_jwt false, x-job-token; cron `market-today`
+  every 10 min via `scr_market_run()`, ~24 FMP calls) writes one row `scr_market.id='today'`: 15 tile quotes (one `quote` call each;
+  Starter has no batch quotes) + 5-min intraday charts for the 4 indexes and 1-hour for S&P futures, `company-screener` prices for
+  stocks and ETFs over $500M → `moves` {symbol: [change, price]} vs the last stored close before the session (`scr_last_closes()`),
+  `news/general-latest` (24), `exchange-market-hours`. Page computes sectors/industries (market-cap weighted), breadth and
+  gainers/losers from `moves` + `d.stocks`/`d.etfs`; re-reads the row every 2 min. Not on Starter (402): WTI (CLUSD), nat gas,
+  copper, Nasdaq/Dow/Russell futures, 10-yr yield (^TNX), dollar index → ETF stand-ins USO, UNG, CPER, TLT, UUP (marked "via").
+  Holidays: `NYSE_HOLIDAYS`/`EARLY_CLOSE` in shared/market.js (FMP's list lacked Thanksgiving): **extend for 2028**.
+  Deploy: files `index.ts` + `lib/market.js` (`scripts/sync-function-lib.sh` copies it). Demo mode reads `public/market-sample.json` if present.
 - `src/lib/assessment.js` – strengths/weaknesses lines, each a figure vs a fixed threshold.
 - `scripts/calibrate.mjs` – pulls live FMP data for given tickers and prints the verdicts
   (`FMP_API_KEY=... NODE_USE_ENV_PROXY=1 node scripts/calibrate.mjs NVDA FTNT ...`);

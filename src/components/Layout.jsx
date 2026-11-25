@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen, Briefcase, Telescope, Layers } from 'lucide-react'
+import { SlidersHorizontal, List, Search, Activity, LogOut, BookOpen, Briefcase, Telescope, Layers, Gauge } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { ago } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
@@ -20,6 +20,7 @@ export const REFERENCE = [
 ]
 // Between the steps and the reference pages: the market-wide scan for opportunities.
 export const DISCOVER = [
+  { to: '/market', label: 'Market today', hint: 'Indexes, fear gauge, movers, news', icon: Gauge },
   { to: '/prospects', label: 'Prospects', hint: 'Opportunities in every sector', icon: Telescope },
   { to: '/etfs', label: 'ETF finder', hint: 'Funds by cost, mix and timing', icon: Layers },
 ]

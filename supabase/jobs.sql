@@ -48,3 +48,6 @@ select cron.schedule('screener-replay',  '*/5 * * * *',    $$select public.scr_r
 --         command := $x$select public.scr_run('history', '&limit=8&rate=60')$x$);
 --       perform cron.unschedule('screener-handoff');
 --     end if; end $b$; $h$);
+
+-- Market today: one snapshot every 10 minutes, around the clock (~24 FMP calls a run; futures and bitcoin trade overnight).
+select cron.schedule('market-today', '*/10 * * * *', $$select public.scr_market_run()$$);

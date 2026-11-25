@@ -6,4 +6,5 @@ mkdir -p supabase/functions/screener-sync/lib
 cp shared/*.js supabase/functions/screener-sync/lib/
 mkdir -p supabase/functions/backtest/lib
 cp shared/{criteria,replay,backtest,metrics,crossSection}.js supabase/functions/backtest/lib/
+cp shared/market.js supabase/functions/market-today/lib/
 echo "copied shared/ -> supabase/functions/screener-sync/lib/"

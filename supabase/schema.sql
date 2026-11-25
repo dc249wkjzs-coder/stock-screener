@@ -199,3 +199,19 @@ create or replace function public.scr_history_todo(n integer) returns setof text
   select t.symbol from (select s.symbol, s.market_cap from scr_stocks s where s.active union all select e.symbol, e.aum from scr_etfs e where e.active) t
   left join scr_history h using (symbol) where h.fetched_at is null or h.fetched_at < now() - interval '30 days'
   order by h.fetched_at nulls first, t.market_cap desc nulls last limit n $$;
+
+-- ---------- Market today (2026-11-25). Edge Function market-today writes one snapshot row ('today') every 10 minutes.
+create table if not exists public.scr_market (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+alter table public.scr_market enable row level security;
+drop policy if exists "read market" on public.scr_market;
+create policy "read market" on public.scr_market for select to authenticated using (true);
+create or replace function public.scr_last_closes() returns table(symbol text, dates text[], closes float8[])
+language sql stable security definer set search_path to 'public' as $$
+  select p.symbol, (p.dates[greatest(1, cardinality(p.dates) - 1):])::text[], p.closes[greatest(1, cardinality(p.closes) - 1):]
+  from scr_prices p where cardinality(p.dates) > 0 order by p.symbol $$;
+revoke all on function public.scr_last_closes() from public, anon, authenticated;
+create or replace function public.scr_market_run() returns bigint language sql security definer set search_path to 'public', 'extensions' as $$
+  select net.http_post(url := 'https://vwgckbpdtqwkxnogbjtq.supabase.co/functions/v1/market-today',
+    headers := jsonb_build_object('Content-Type','application/json','x-job-token', public.scr_secret('screener_job_token')),
+    body := '{}'::jsonb, timeout_milliseconds := 10000) $$;
+revoke all on function public.scr_market_run() from public, anon, authenticated;

@@ -16,6 +16,7 @@ import Learn from './pages/Learn'
 import Portfolio from './pages/Portfolio'
 import Prospects from './pages/Prospects'
 import EtfFinder from './pages/EtfFinder'
+import MarketToday from './pages/MarketToday'
 
 const arrivedToSetPassword = /type=(invite|recovery)/.test(window.location.hash)
 
@@ -50,6 +51,7 @@ function App() {
             <Route path="portfolio" element={<Portfolio />} />
             <Route path="prospects" element={<Prospects />} />
             <Route path="etfs" element={<EtfFinder />} />
+            <Route path="market" element={<MarketToday />} />
             <Route path="backtest" element={<Backtest />} />
             <Route path="stock/:symbol" element={<Stock />} />
             <Route path="status" element={<Status />} />
