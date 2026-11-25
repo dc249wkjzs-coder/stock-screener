@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ExternalLink, RefreshCw, ChevronDown, ArrowRight, LayoutGrid, List } from 'lucide-react'
+import { ExternalLink, RefreshCw, ChevronDown, ArrowRight, LayoutGrid, List, X } from 'lucide-react'
 import { useData } from '@/lib/data'
 import { DEMO, supabase } from '@/lib/supabase'
 import { Panel, Empty } from '@/components/ui'
@@ -46,19 +46,35 @@ const LISTS = [
   { id: 'active', label: 'Most active', note: 'The 100 stocks with the most dollars traded today' },
   { id: 'high', label: '52-week high', note: 'Stocks within 2% of their 52-week high' },
   { id: 'low', label: '52-week low', note: 'Stocks within 2% of their 52-week low' },
+  { id: 'industries', label: 'Industries', note: 'Every industry as one tile (all its companies added up); click one to see its companies' },
+  { id: 'buyzone', label: 'Buy zone', note: 'Stocks sitting at a Fibonacci buy level now (wait or bouncing)' },
+  { id: 'unusual', label: 'Unusual volume', note: 'Stocks trading at least twice their usual daily volume' },
   { id: 'etfs', label: 'ETFs', note: 'The 200 largest ETFs, grouped by kind (leveraged funds left out)' },
 ]
 
-function buildList(id, d, moves) {
+function buildList(id, d, moves, zoom) {
   if (id === 'etfs') {
     return d.etfs.filter((e) => !e.leveraged && moves.etfs[e.symbol] && e.aum > 0).sort((a, b) => b.aum - a.aum).slice(0, 200)
       .map((e) => ({ symbol: e.symbol, name: e.name, value: e.aum, chg: moves.etfs[e.symbol][0], price: moves.etfs[e.symbol][1], vol: moves.etfs[e.symbol][2], group: e.category, etf: true }))
   }
   const rows = d.stocks.filter((s) => moves.stocks[s.symbol] && s.marketCap > 0).map((s) => {
     const m = moves.stocks[s.symbol]
-    return { symbol: s.symbol, name: s.name, value: s.marketCap, chg: m[0], price: m[1], vol: m[2], group: s.sector || 'Other', high52: s.high52, low52: s.low52 }
+    return { symbol: s.symbol, name: s.name, value: s.marketCap, chg: m[0], price: m[1], vol: m[2], avgVol: m[3], group: s.sector || 'Other',
+      industry: s.industry || 'Other', high52: s.high52, low52: s.low52, setup: s.setup?.status }
   })
   const byValue = (a, b) => b.value - a.value
+  // Zoomed into one industry (from the Industries map): every company in it, whatever the list.
+  if (zoom?.type === 'industry') return rows.filter((r) => r.industry === zoom.name).sort(byValue)
+  if (id === 'industries') {
+    const ind = {}
+    for (const r of rows) {
+      const I = (ind[r.industry] ||= { symbol: r.industry, label: r.industry, name: `${r.industry} (${r.group})`, value: 0, w: 0, n: 0, group: r.group, industryTile: true })
+      I.value += r.value; I.w += r.value * r.chg; I.n++
+    }
+    return Object.values(ind).map((I) => ({ ...I, chg: I.w / I.value, price: null, name: `${I.label} · ${I.n} companies` }))
+  }
+  if (id === 'buyzone') return rows.filter((r) => r.setup === 'zone' || r.setup === 'zone-confirmed').sort(byValue)
+  if (id === 'unusual') return rows.filter((r) => r.vol > 0 && r.avgVol > 0 && r.vol >= 2 * r.avgVol).sort((a, b) => b.vol / b.avgVol - a.vol / a.avgVol).slice(0, 100)
   if (id === 'all') return rows.sort(byValue).slice(0, 500)
   if (id === 'gainers') return rows.filter((r) => r.chg > 0).sort((a, b) => b.chg - a.chg).slice(0, 100)
   if (id === 'losers') return rows.filter((r) => r.chg < 0).sort((a, b) => a.chg - b.chg).slice(0, 100)
@@ -81,15 +97,16 @@ function heatColor(chg) {
 }
 
 function useMarket() {
-  const [state, setState] = useState({ loading: true, data: null, error: null })
+  const [state, setState] = useState({ loading: true, data: null, calendar: null, error: null })
   useEffect(() => {
     if (DEMO) {   // demo mode: a saved snapshot if one is bundled (public/market-sample.json), otherwise nothing
-      fetch('/market-sample.json').then((r) => (r.ok ? r.json() : null)).catch(() => null).then((data) => setState({ loading: false, data, error: null }))
+      fetch('/market-sample.json').then((r) => (r.ok ? r.json() : null)).catch(() => null).then((data) => setState({ loading: false, data, calendar: data?.calendar || null, error: null }))
       return
     }
     let alive = true
-    const load = () => supabase.from('scr_market').select('data').eq('id', 'today').maybeSingle()
-      .then(({ data, error }) => alive && setState({ loading: false, data: data?.data || null, error: error?.message || null }))
+    const load = () => supabase.from('scr_market').select('id,data').in('id', ['today', 'calendar'])
+      .then(({ data, error }) => alive && setState({ loading: false, data: data?.find((r) => r.id === 'today')?.data || null,
+        calendar: data?.find((r) => r.id === 'calendar')?.data || null, error: error?.message || null }))
     load()
     const t = setInterval(load, REFRESH_MS)
     return () => { alive = false; clearInterval(t) }
@@ -190,7 +207,7 @@ function QuoteDetail({ q }) {
   const zone = q.sym === '^VIX' ? vixZone(q.price) : null
   const t = TERMS[q.term]
   return (
-    <section className="card p-4 grid gap-3">
+    <section className="card p-4 grid grid-cols-[minmax(0,1fr)] gap-3 min-w-0 overflow-hidden">
       <div>
         <div className="font-semibold">{q.label}{q.via && <span className="text-muted font-normal text-[13px]"> · via {q.via}</span>}</div>
         <div className="flex items-baseline gap-2 mt-1"><span className="num text-[26px] font-semibold">{fmtPrice(q)}</span><span className={`num font-semibold ${tone(q.chg)}`}>{q.via ? '' : `${fmtChange(q)} `}{pct(q.chg, { decimals: 2 })}</span></div>
@@ -206,8 +223,27 @@ function QuoteDetail({ q }) {
   )
 }
 
-function StockDetail({ s, m }) {
+// Last ~3 months of daily closes for the company card's mini chart.
+function useCloses(symbol) {
+  const [closes, setCloses] = useState(null)
+  useEffect(() => {
+    setCloses(null)
+    if (DEMO || !symbol) return
+    let alive = true
+    supabase.from('scr_prices').select('closes').eq('symbol', symbol).maybeSingle()
+      .then(({ data }) => alive && setCloses(data?.closes ? data.closes.slice(-63).map(Number) : null))
+    return () => { alive = false }
+  }, [symbol])
+  return closes
+}
+
+function StockDetail({ s, m, cal }) {
   const etf = s.kind === 'etf'
+  const closes = useCloses(s.symbol)
+  const today = new Date().toISOString().slice(0, 10)
+  const nextEarnings = cal?.earnings?.find((e) => e.symbol === s.symbol && (e.eps == null || e.date >= today))
+  const rating = cal?.ratings?.find((r) => r.symbol === s.symbol)
+  const insider = cal?.insiders?.filter((x) => x.symbol === s.symbol) || []
   const v = etf ? null : verdict(s)
   const price = m?.[1] ?? s.price
   const rows = etf ? [
@@ -219,14 +255,14 @@ function StockDetail({ s, m }) {
     ['1-year change', pct(s.chg1y)],
   ]
   return (
-    <section className="card p-4 grid gap-3">
+    <section className="card p-4 grid grid-cols-[minmax(0,1fr)] gap-3 min-w-0 overflow-hidden">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="font-semibold text-[17px]">{s.symbol}{etf && <span className="ml-1.5 text-[10px] font-bold text-accent">ETF</span>}</div>
           <div className="text-[12.5px] text-muted truncate">{s.name}</div>
           <div className="text-[11.5px] text-faint truncate">{etf ? s.issuer : `${s.sector || ''} · ${s.industry || ''}`}</div>
         </div>
-        {v?.call && <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold uppercase ${CALL_STYLE[v.call].pill}`}>{v.call}</span>}
+        {v?.call && <span className={`mr-6 rounded-full px-2.5 py-0.5 text-[12px] font-bold uppercase ${CALL_STYLE[v.call].pill}`}>{v.call}</span>}
       </div>
       <div className="flex items-baseline gap-2"><span className="num text-[26px] font-semibold">{usd(price)}</span><span className={`num font-semibold ${tone(m?.[0])}`}>{pct(m?.[0], { decimals: 2 })} today</span></div>
       {m?.[2] > 0 && <div className="text-[12px] text-muted -mt-2">Volume today {bigNum(m[2])} shares{s.avgVolume ? ` · average ${bigNum(s.avgVolume)}` : ''}</div>}
@@ -234,8 +270,16 @@ function StockDetail({ s, m }) {
         {rows.map(([k, val]) => <tr key={k} className="border-t border-line/60"><td className="py-1.5 text-muted">{k}</td><td className="py-1.5 text-right num">{val}</td></tr>)}
         <tr className="border-t border-line/60"><td className="py-1.5 text-muted">Entry</td><td className="py-1.5 text-right">{s.setup ? <SetupChip setup={s.setup} /> : '—'}</td></tr>
       </tbody></table>
+      {closes?.length > 5 && <div><Spark data={closes} h={50} /><div className="text-[11px] text-faint mt-1">Last 3 months, daily closes</div></div>}
       <Range low={s.low52} high={s.high52} now={price} label="52-week range" />
-      <div className="grid grid-cols-2 gap-2 items-center">
+      {(nextEarnings || rating || insider.length > 0) && (
+        <div className="grid gap-1.5 text-[12.5px] border-t border-line pt-3">
+          {nextEarnings && <div><span className="text-muted">Earnings:</span> {fmtDay(nextEarnings.date)}{nextEarnings.eps != null ? <> · EPS {nextEarnings.eps} vs {nextEarnings.epsEst ?? '—'} expected <BeatMiss a={nextEarnings.eps} e={nextEarnings.epsEst} /></> : nextEarnings.epsEst != null ? ` · ${nextEarnings.epsEst} EPS expected` : ''}</div>}
+          {rating && <div><span className="text-muted">Analyst:</span> {rating.firm} {rating.action === 'up' ? 'upgraded' : 'downgraded'} to {rating.to} ({fmtDay(rating.at)})</div>}
+          {insider.length > 0 && <div><span className="text-muted">Insiders this week:</span> {insider.filter((x) => x.kind === 'buy').length} buys, {insider.filter((x) => x.kind === 'sell').length} sells</div>}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2 items-center">
         <Link to={`/stock/${s.symbol}`} className="btn btn-primary justify-center">Full page <ArrowRight size={14} /></Link>
         <PortfolioButton symbol={s.symbol} full />
       </div>
@@ -243,7 +287,7 @@ function StockDetail({ s, m }) {
   )
 }
 
-function MarketMap({ items, selected, onPick }) {
+function MarketMap({ items, selected, onPick, onGroup }) {
   const ref = useRef(null)
   const width = useWidth(ref)
   const height = width < 640 ? Math.max(380, Math.round(width * 1.1)) : Math.round(Math.min(680, Math.max(460, width * 0.62)))
@@ -252,12 +296,14 @@ function MarketMap({ items, selected, onPick }) {
   return (
     <div ref={ref} className="relative w-full rounded-xl overflow-hidden bg-[rgb(30,32,38)]" style={{ height }} onMouseLeave={() => setHover(null)}>
       {groups.map((g) => g.showHeader && (
-        <div key={g.name} className="absolute px-1.5 text-[11px] font-semibold text-white/85 truncate leading-[18px] pointer-events-none" style={{ left: g.x, top: g.y, width: g.w }}>
+        <button key={g.name} onClick={() => onGroup?.(g.name)} title={onGroup ? `Zoom into ${g.name}` : undefined}
+          className="absolute px-1.5 text-left text-[11px] font-semibold text-white/85 truncate leading-[18px] hover:text-white hover:underline" style={{ left: g.x, top: g.y, width: g.w, height: 18 }}>
           {g.name} <span className={g.chg >= 0 ? 'text-[rgb(120,220,150)]' : 'text-[rgb(255,140,140)]'}>{pct(g.chg, { decimals: 2 })}</span>
-        </div>
+        </button>
       ))}
       {tiles.map((t) => {
-        const fs = Math.max(9, Math.min(26, Math.min(t.w / 4.2, t.h / 2.8)))
+        const text = t.label || t.symbol
+        const fs = t.label ? Math.max(9, Math.min(16, Math.min(t.w / Math.max(6, text.length * 0.62), t.h / 3))) : Math.max(9, Math.min(26, Math.min(t.w / 4.2, t.h / 2.8)))
         const showSym = t.w > 26 && t.h > 16
         const showChg = t.w > 40 && t.h > 32
         const sel = selected === t.symbol
@@ -265,7 +311,7 @@ function MarketMap({ items, selected, onPick }) {
           <button key={t.symbol} onClick={() => onPick(t.symbol)} onMouseEnter={() => setHover(t)}
             className={`absolute grid place-content-center text-center text-white overflow-hidden leading-tight hover:brightness-125 ${sel ? 'z-10 outline-2 outline-white -outline-offset-2' : ''}`}
             style={{ left: t.x + 0.5, top: t.y + 0.5, width: Math.max(0, t.w - 1), height: Math.max(0, t.h - 1), background: heatColor(t.chg) }}>
-            {showSym && <span className="font-bold" style={{ fontSize: fs }}>{t.symbol}</span>}
+            {showSym && <span className={`font-bold ${t.label ? 'px-1 line-clamp-2' : ''}`} style={{ fontSize: fs }}>{text}</span>}
             {showChg && <span className="num opacity-90" style={{ fontSize: Math.max(9, fs * 0.62) }}>{pct(t.chg, { decimals: 2 })}</span>}
           </button>
         )
@@ -273,9 +319,9 @@ function MarketMap({ items, selected, onPick }) {
       {hover && (
         <div className="absolute z-20 pointer-events-none rounded-lg bg-surface text-fg shadow-lg border border-line px-3 py-2 text-[12.5px] max-w-[240px]"
           style={{ left: Math.max(0, Math.min(hover.x + hover.w / 2, width - 250)), top: Math.min(hover.y + hover.h + 4, height - 90) }}>
-          <div className="font-semibold">{hover.symbol} <span className={`num ${tone(hover.chg)}`}>{pct(hover.chg, { decimals: 2 })}</span></div>
-          <div className="text-muted truncate">{hover.name}</div>
-          <div className="num">{usd(hover.price)} · {cap(hover.value)}</div>
+          <div className="font-semibold">{hover.label || hover.symbol} <span className={`num ${tone(hover.chg)}`}>{pct(hover.chg, { decimals: 2 })}</span></div>
+          <div className="text-muted truncate">{hover.industryTile ? `${hover.n} companies · click to see them` : hover.name}</div>
+          <div className="num">{hover.price != null ? `${usd(hover.price)} · ` : ''}{cap(hover.value)}{hover.avgVol > 0 && hover.vol > 0 ? ` · ${(hover.vol / hover.avgVol).toFixed(1)}× usual volume` : ''}</div>
         </div>
       )}
     </div>
@@ -301,10 +347,10 @@ function ListView({ items, onPick }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.symbol} className="cursor-pointer" onClick={() => onPick(r.symbol)}>
-              <td className="w-8 pr-0!" onClick={(e) => e.stopPropagation()}><PortfolioButton symbol={r.symbol} /></td>
-              <td className="text-left! max-w-[260px]"><span className="font-semibold text-accent">{r.symbol}</span><div className="text-[12px] text-muted truncate">{r.name}</div></td>
+              <td className="w-8 pr-0!" onClick={(e) => e.stopPropagation()}>{!r.industryTile && <PortfolioButton symbol={r.symbol} />}</td>
+              <td className="text-left! max-w-[260px]"><span className="font-semibold text-accent">{r.label || r.symbol}</span><div className="text-[12px] text-muted truncate">{r.industryTile ? `${r.n} companies` : r.name}</div></td>
               <td className={`num font-semibold ${tone(r.chg)}`}>{pct(r.chg, { decimals: 2 })}</td>
-              <td className="num">{usd(r.price)}</td>
+              <td className="num">{r.price == null ? '—' : usd(r.price)}</td>
               <td className="num">{cap(r.value)}</td>
               <td className="text-left! text-[12.5px] whitespace-nowrap">{r.group}</td>
             </tr>
@@ -312,6 +358,111 @@ function ListView({ items, onPick }) {
         </tbody>
       </table>
     </div>
+  )
+}
+
+const fmtDay = (d) => (d ? new Date(d.length <= 10 ? `${d}T12:00:00Z` : d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: d.length <= 10 ? 'UTC' : undefined }) : '—')
+const money = (v) => (v == null ? '—' : v >= 1e9 ? `$${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}K`)
+function BeatMiss({ a, e }) {
+  if (a == null || e == null) return null
+  const beat = a >= e
+  return <span className={`ml-1 rounded px-1.5 py-px text-[10.5px] font-semibold ${beat ? 'bg-gain-soft text-gain' : 'bg-loss-soft text-loss'}`}>{beat ? 'Beat' : 'Miss'}</span>
+}
+const CAL_TABS = [['earnings', 'Earnings', 'earnings-calendar'], ['economy', 'Economy', 'economic-calendar'], ['ratings', 'Analyst moves', 'analyst-ratings'], ['insiders', 'Insider trades', 'insider-trades']]
+
+function ThisWeek({ cal, d, onPick }) {
+  const [tab, setTab] = useState('earnings')
+  const [more, setMore] = useState(false)
+  const [side, setSide] = useState('all')
+  if (!cal) return null
+  const cap0 = (sym) => d.bySymbol[sym]?.marketCap || d.bySymbol[sym]?.aum || 0
+  const nameOf = (sym) => d.bySymbol[sym]?.name || ''
+  const Sym = ({ s }) => <button className="font-semibold text-accent hover:underline" onClick={() => onPick(s)}>{s}</button>
+  let body = null
+  if (tab === 'earnings') {
+    const days = {}
+    for (const e of cal.earnings) (days[e.date] ||= []).push(e)
+    body = Object.keys(days).sort().map((day) => {
+      const rows = days[day].sort((a, b) => cap0(b.symbol) - cap0(a.symbol))
+      return (
+        <div key={day} className="mb-3">
+          <div className="text-[12px] font-semibold text-muted mb-1">{fmtDay(day)} · {rows.length} {rows.length === 1 ? 'company' : 'companies'}</div>
+          <table className="w-full text-[13px]"><tbody>
+            {rows.slice(0, more ? 999 : 8).map((e) => (
+              <tr key={e.symbol} className="border-t border-line/60">
+                <td className="py-1.5 pr-3 whitespace-nowrap"><Sym s={e.symbol} /></td>
+                <td className="py-1.5 text-muted truncate max-w-0 w-full">{nameOf(e.symbol)}</td>
+                <td className="py-1.5 text-right whitespace-nowrap num pl-2">{e.eps != null ? <>EPS {e.eps} <span className="text-faint">vs {e.epsEst ?? '—'}</span><BeatMiss a={e.eps} e={e.epsEst} /></> : <span className="text-muted">EPS est. {e.epsEst ?? '—'}</span>}</td>
+                <td className="py-1.5 text-right whitespace-nowrap num pl-3 hidden md:table-cell">{e.rev != null ? <>Sales {money(e.rev)} <BeatMiss a={e.rev} e={e.revEst} /></> : <span className="text-muted">Sales est. {money(e.revEst)}</span>}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      )
+    })
+  } else if (tab === 'economy') {
+    const days = {}
+    for (const e of cal.economy) (days[e.at.slice(0, 10)] ||= []).push(e)
+    body = Object.keys(days).sort().filter((day) => more || days[day].some((e) => e.impact === 'High')).map((day) => (
+      <div key={day} className="mb-3">
+        <div className="text-[12px] font-semibold text-muted mb-1">{fmtDay(day)}</div>
+        <table className="w-full text-[13px]"><thead><tr className="text-[11px] text-faint"><th className="text-left font-normal">Your time</th><th className="text-left font-normal">Release</th><th className="text-right font-normal">Actual</th><th className="text-right font-normal">Expected</th><th className="text-right font-normal hidden sm:table-cell">Previous</th></tr></thead><tbody>
+          {days[day].filter((e) => more || e.impact === 'High').map((e, i) => (
+            <tr key={i} className="border-t border-line/60">
+              <td className="py-1.5 whitespace-nowrap text-muted pr-2">{new Date(e.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</td>
+              <td className="py-1.5"><span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${e.impact === 'High' ? 'bg-loss' : 'bg-warn'}`} />{e.event}</td>
+              <td className="py-1.5 text-right num font-semibold">{e.actual ?? '—'}{e.actual != null ? e.unit : ''}</td>
+              <td className="py-1.5 text-right num text-muted">{e.estimate ?? '—'}{e.estimate != null ? e.unit : ''}</td>
+              <td className="py-1.5 text-right num text-muted hidden sm:table-cell">{e.previous ?? '—'}{e.previous != null ? e.unit : ''}</td>
+            </tr>
+          ))}
+        </tbody></table>
+      </div>
+    ))
+  } else if (tab === 'ratings') {
+    body = (
+      <table className="w-full text-[13px]"><tbody>
+        {cal.ratings.slice(0, more ? 999 : 20).map((r, i) => (
+          <tr key={i} className="border-t border-line/60">
+            <td className="py-1.5 whitespace-nowrap text-muted pr-2">{fmtDay(r.at)}</td>
+            <td className="py-1.5 pr-3 whitespace-nowrap"><Sym s={r.symbol} /></td>
+            <td className="py-1.5"><span className={`rounded px-1.5 py-px text-[10.5px] font-semibold mr-1.5 ${r.action === 'up' ? 'bg-gain-soft text-gain' : 'bg-loss-soft text-loss'}`}>{r.action === 'up' ? 'Upgrade' : 'Downgrade'}</span>{r.firm}: {r.from} → <b>{r.to}</b></td>
+          </tr>
+        ))}
+      </tbody></table>
+    )
+  } else {
+    const rows = cal.insiders.filter((x) => side === 'all' || x.kind === side)
+    body = (<>
+      <div className="inline-flex rounded-full bg-surface-2 p-0.5 text-[12.5px] mb-2">
+        {[['all', 'All'], ['buy', 'Buys'], ['sell', 'Sells']].map(([k, l]) => <button key={k} onClick={() => setSide(k)} className={`rounded-full px-2.5 py-0.5 ${side === k ? 'bg-surface shadow-sm font-semibold' : 'text-muted'}`}>{l}</button>)}
+      </div>
+      <table className="w-full text-[13px]"><tbody>
+        {rows.slice(0, more ? 999 : 20).map((x, i) => (
+          <tr key={i} className="border-t border-line/60">
+            <td className="py-1.5 whitespace-nowrap text-muted pr-2">{fmtDay(x.filed)}</td>
+            <td className="py-1.5 pr-3 whitespace-nowrap"><Sym s={x.symbol} /></td>
+            <td className="py-1.5 max-w-0 w-full"><div className="truncate">{x.who}</div><div className="text-[11px] text-faint truncate">{x.role}</div></td>
+            <td className="py-1.5 pl-2"><span className={`rounded px-1.5 py-px text-[10.5px] font-semibold ${x.kind === 'buy' ? 'bg-gain-soft text-gain' : 'bg-loss-soft text-loss'}`}>{x.kind === 'buy' ? 'Bought' : 'Sold'}</span></td>
+            <td className="py-1.5 text-right num pl-2 whitespace-nowrap">{money(x.value)}</td>
+          </tr>
+        ))}
+      </tbody></table>
+    </>)
+  }
+  const counts = { earnings: cal.earnings.length, economy: cal.economy.filter((e) => e.impact === 'High').length, ratings: cal.ratings.length, insiders: cal.insiders.length }
+  return (
+    <Panel title="This week" subtitle={`Last few days and the week ahead · updated ${ago(cal.updatedAt)} (hourly) · stocks over $500M only`}>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {CAL_TABS.map(([k, label, term]) => (
+          <button key={k} onClick={() => { setTab(k); setMore(false) }} className={`rounded-full px-3 py-1 text-[13px] border inline-flex items-center gap-1 ${tab === k ? 'bg-fg text-bg border-fg' : 'border-line hover:border-fg/30'}`}>
+            {label} <span className="num text-[11px] opacity-70">{counts[k]}</span>{tab === k && <Info id={term} />}
+          </button>
+        ))}
+      </div>
+      <div className="max-h-[520px] overflow-y-auto pr-1">{body}</div>
+      <button className="btn mt-3" onClick={() => setMore(!more)}>{more ? 'Show less' : tab === 'economy' ? 'Include medium-impact releases' : 'Show all'}</button>
+    </Panel>
   )
 }
 
@@ -340,16 +491,23 @@ function News({ items }) {
 export default function MarketToday() {
   const d = useData()
   const navigate = useNavigate()
-  const { loading, data, error } = useMarket()
-  const [list, setList] = useState('all')
+  const { loading, data, calendar, error } = useMarket()
+  const [list, setListRaw] = useState('all')
+  const [zoom, setZoom] = useState(null)   // { type: 'sector' | 'industry', name }
+  const setList = (id) => { setListRaw(id); setZoom(null) }
   const [view, setView] = useState('tiles')
   const [selected, setSelected] = useState({ type: 'quote', sym: '^GSPC' })
   const [, tick] = useState(0)
   useEffect(() => { const t = setInterval(() => tick((x) => x + 1), 30_000); return () => clearInterval(t) }, [])   // keeps "in 1h 10m" fresh
 
   const moves = data?.moves || { stocks: {}, etfs: {} }
-  const items = useMemo(() => buildList(list, d, moves), [list, d, moves])
-  const pick = (symbol) => (isWide() ? setSelected({ type: 'stock', sym: symbol }) : navigate(`/stock/${symbol}`))
+  const allItems = useMemo(() => buildList(list, d, moves, zoom), [list, d, moves, zoom])
+  const items = zoom?.type === 'sector' ? allItems.filter((x) => x.group === zoom.name) : allItems
+  const pick = (symbol) => {
+    if (list === 'industries' && zoom?.type !== 'industry') { setZoom({ type: 'industry', name: symbol }); return }
+    if (isWide()) setSelected({ type: 'stock', sym: symbol }); else navigate(`/stock/${symbol}`)
+  }
+  const pickSector = (name) => setZoom({ type: 'sector', name })
 
   const header = (
     <div>
@@ -385,7 +543,9 @@ export default function MarketToday() {
             ))}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-[13px]"><b>{meta.note}</b> <span className="text-muted">· {items.length} shown · tile size = {list === 'etfs' ? 'fund size' : 'company value'}, colour = today's move<Info id="sector-map" /></span></div>
+            <div className="text-[13px]">
+              {zoom && <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft text-accent px-2.5 py-0.5 mr-2 font-semibold">{zoom.name}<button title="Back to the whole list" onClick={() => setZoom(null)}><X size={13} /></button></span>}
+              <b>{zoom?.type === 'industry' ? `Every company in ${zoom.name}` : meta.note}</b> <span className="text-muted">· {items.length} shown · tile size = {list === 'etfs' ? 'fund size' : 'company value'}, colour = today's move<Info id="sector-map" /></span></div>
             <div className="flex flex-wrap items-center gap-3">
               <Legend />
               <div className="inline-flex rounded-full bg-surface-2 p-0.5">
@@ -396,20 +556,23 @@ export default function MarketToday() {
             </div>
           </div>
           {items.length === 0 ? <Empty title="Nothing in this list right now">{list === 'active' ? 'Trading volume shows once the market has traded today.' : 'Check back after the next update.'}</Empty>
-            : view === 'tiles' ? <MarketMap items={items} selected={selected.sym} onPick={pick} /> : <ListView items={items} onPick={pick} />}
-          <p className="text-[12px] text-faint">Click a tile for the company's figures on the right (on a phone it opens the full page). Grouped by sector{list === 'etfs' ? ' (ETFs by kind)' : ''}; each group's move is weighted by size.</p>
+            : view === 'tiles' ? <MarketMap items={items} selected={selected.sym} onPick={pick} onGroup={zoom ? null : pickSector} /> : <ListView items={items} onPick={pick} />}
+          <p className="text-[12px] text-faint">{list === 'industries' && !zoom ? 'Click an industry to see its companies, or a sector name to zoom in.' : 'Click a tile for the company\'s figures on the right (on a phone it opens the full page); click a sector name to zoom into it.'} Grouped by sector{list === 'etfs' ? ' (ETFs by kind)' : ''}; each group's move is weighted by size.</p>
         </section>
 
+        <ThisWeek cal={calendar} d={d} onPick={(s) => (isWide() ? setSelected({ type: 'stock', sym: s }) : navigate(`/stock/${s}`))} />
         <div className="hidden lg:block"><News items={data.news} /></div>
         <p className="text-[12.5px] text-faint px-1">Data from Financial Modeling Prep, snapshot every 10 minutes (may lag the live market by a few minutes). Not investment advice.</p>
       </div>
 
-      <aside className="grid gap-4 content-start lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pb-2">
+      <aside className="grid grid-cols-[minmax(0,1fr)] gap-4 content-start min-w-0 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pb-2">
+        {/* A picked company shows above the watchlist so it's in view straight away; a picked quote shows below its row list. */}
+        {selStock && <div className="hidden lg:block relative">
+          <button className="absolute right-3 top-3 z-10 text-muted hover:text-fg" title="Close" onClick={() => setSelected({ type: 'quote', sym: '^GSPC' })}><X size={16} /></button>
+          <StockDetail s={selStock} m={selMove} cal={calendar} />
+        </div>}
         <Watchlist quotes={data.quotes} selected={selected.type === 'quote' ? selected : null} onSelect={setSelected} />
-        <div className="hidden lg:block">
-          {selected.type === 'quote' && quote[selected.sym] && <QuoteDetail q={quote[selected.sym]} />}
-          {selStock && <StockDetail s={selStock} m={selMove} />}
-        </div>
+        {selected.type === 'quote' && quote[selected.sym] && <div className="hidden lg:block"><QuoteDetail q={quote[selected.sym]} /></div>}
       </aside>
       <div className="lg:hidden"><News items={data.news} /></div>
     </div>

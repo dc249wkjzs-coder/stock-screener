@@ -88,8 +88,8 @@ export function prevClose(last2, session) {
   return before.length ? before[before.length - 1][1] : null;
 }
 
-// {symbol: [changeFraction, price, volume?]} from one price per symbol and its previous close (volume = shares traded today,
-// when the price list gives it). Moves over ±90% are dropped as bad data.
+// {symbol: [changeFraction, price, volume?, avgVolume?]} from one price per symbol and its previous close (volume = shares
+// traded today and the usual daily volume, when the price list gives them). Moves over ±90% are dropped as bad data.
 export function movesFrom(rows, prevBySymbol) {
   const out = {};
   for (const r of rows) {
@@ -97,8 +97,10 @@ export function movesFrom(rows, prevBySymbol) {
     if (!(p > 0) || !(prev > 0)) continue;
     const chg = p / prev - 1;
     if (Math.abs(chg) > 0.9) continue;
-    const v = Number(r.volume);
-    out[r.symbol] = v > 0 ? [Math.round(chg * 1e5) / 1e5, p, v] : [Math.round(chg * 1e5) / 1e5, p];
+    const v = Number(r.volume), av = Number(r.avgVolume);
+    const row = [Math.round(chg * 1e5) / 1e5, p];
+    if (v > 0) { row.push(v); if (av > 0) row.push(Math.round(av)); }
+    out[r.symbol] = row;
   }
   return out;
 }
@@ -141,4 +143,40 @@ export function sectorMoves(stocks, moves) {
     name: S.name, chg: S.sum / S.w, up: S.up, n: S.n, value: S.w,
     industries: Object.values(S.ind).map((I) => ({ name: I.name, chg: I.sum / I.w, up: I.up, n: I.n, best: I.best, worst: I.worst })).sort((a, b) => b.chg - a.chg),
   })).sort((a, b) => b.chg - a.chg);
+}
+
+// ---------- This week: earnings, the economic calendar, analyst rating changes, insider trades (refreshed hourly).
+// Raw FMP rows in, trimmed rows out; only symbols the site covers (stocks and ETFs over $500M) are kept.
+const num = (x) => (x == null || x === '' || !Number.isFinite(Number(x)) ? null : Number(x));
+
+// prev = the last stored calendar: the data plan only returns the latest 100 rating changes (about a day), so rating changes
+// and insider trades are added to what was kept before, and anything older than 8 days is dropped.
+export function calendarFrom({ earnings = [], economy = [], grades = [], insiders = [] }, covered, prev = null, now = new Date()) {
+  const cutoff = new Date(now.getTime() - 8 * 864e5).toISOString().slice(0, 10);
+  const has = (s) => covered.has(s);
+  const er = earnings.filter((e) => has(e.symbol)).map((e) => ({
+    symbol: e.symbol, date: e.date, epsEst: num(e.epsEstimated), eps: num(e.epsActual), revEst: num(e.revenueEstimated), rev: num(e.revenueActual),
+  })).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const ec = economy.filter((e) => e.country === 'US' && (e.impact === 'High' || e.impact === 'Medium')).map((e) => ({
+    at: e.date ? `${e.date.replace(' ', 'T')}Z` : null, event: e.event, impact: e.impact, unit: e.unit || '',
+    previous: num(e.previous), estimate: num(e.estimate), actual: num(e.actual),
+  })).sort((a, b) => (a.at < b.at ? -1 : 1));
+  const gr = grades.filter((g) => has(g.symbol) && /upgrade|downgrade/i.test(g.action || '')).map((g) => ({
+    symbol: g.symbol, at: g.publishedDate, firm: g.gradingCompany, from: g.previousGrade, to: g.newGrade, action: /upgrade/i.test(g.action) ? 'up' : 'down',
+    title: g.newsTitle, url: g.newsURL, price: num(g.priceWhenPosted),
+  }));
+  const seen = new Set();
+  const grUnique = [...gr, ...(prev?.ratings || [])].filter((g) => (g.at || '').slice(0, 10) >= cutoff).filter((g) => { const k = `${g.symbol}|${g.firm}|${g.action}|${(g.at || '').slice(0, 10)}`; if (seen.has(k)) return false; seen.add(k); return true; })
+    .sort((a, b) => (a.at < b.at ? 1 : -1));
+  const ins = insiders.filter((x) => has(x.symbol) && /^(P-Purchase|S-Sale)/.test(x.transactionType || '')).map((x) => {
+    const shares = num(x.securitiesTransacted), price = num(x.price);
+    return { symbol: x.symbol, date: x.transactionDate || x.filingDate, filed: x.filingDate, who: x.reportingName, role: x.typeOfOwner,
+      kind: /^P-/.test(x.transactionType) ? 'buy' : 'sell', shares, price, value: shares != null && price != null ? shares * price : null };
+  }).filter((x) => x.value == null || x.value >= 50_000);
+  const seenIns = new Set();
+  const insAll = [...ins, ...(prev?.insiders || [])].filter((x) => (x.filed || '') >= cutoff).filter((x) => {
+    const k = `${x.symbol}|${x.who}|${x.filed}|${x.date}|${x.kind}|${x.shares}`;
+    if (seenIns.has(k)) return false; seenIns.add(k); return true;
+  }).sort((a, b) => (a.filed < b.filed ? 1 : a.filed > b.filed ? -1 : (b.value || 0) - (a.value || 0)));
+  return { earnings: er, economy: ec, ratings: grUnique.slice(0, 400), insiders: insAll.slice(0, 400) };
 }

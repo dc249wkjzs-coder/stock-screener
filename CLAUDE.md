@@ -115,7 +115,14 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   middle = list chips (All stocks = 500 largest, Top gainers / Biggest losers = 100, Most active = dollar volume, 52-week high/low
   within 2%, ETFs = 200 largest non-leveraged) → **market map** (`shared/treemap.js` squarified treemap, tiles sized by market
   value / fund size, grouped by sector / ETF kind, coloured ±3%; tests `tests/treemap.test.js`) or List view; click a tile → company
-  card on the right (desktop) or the full page (phone). `moves` entries are [change, price, volume]. Re-reads the row every 2 min. Not on Starter (402): WTI (CLUSD), nat gas,
+  card on the right (desktop; shown above the watchlist, with a 3-month chart from `scr_prices`, next earnings, latest rating change,
+  insider count) or the full page (phone). More lists (2026-11-25): Industries (industry tiles; click → its companies), Buy zone
+  (setup zone / zone-confirmed), Unusual volume (≥2× avg volume); click a sector name to zoom. `moves` entries are
+  [change, price, volume, avgVolume]. **This week** panel (row `scr_market.id='calendar'`, refreshed when older than 55 min by the same
+  function, ~8 extra calls): earnings (−3…+8 days, our universe), US economic calendar (High/Medium; FMP times are UTC), analyst
+  upgrades/downgrades (`grades-latest-news`: Starter allows page 0 and limit ≤100 only, so new items are merged with the stored ones
+  and kept 8 days, `calendarFrom(raw, covered, prev)`), insider open-market buys/sales ≥ $50K (`insider-trading/latest`, 4 pages).
+  market-today is deployed as one esbuild-minified index.ts (bundle the repo source). Re-reads the row every 2 min. Not on Starter (402): WTI (CLUSD), nat gas,
   copper, Nasdaq/Dow/Russell futures, 10-yr yield (^TNX), dollar index → ETF stand-ins USO, UNG, CPER, TLT, UUP (marked "via").
   Holidays: `NYSE_HOLIDAYS`/`EARLY_CLOSE` in shared/market.js (FMP's list lacked Thanksgiving): **extend for 2028**.
   Deploy: files `index.ts` + `lib/market.js` (`scripts/sync-function-lib.sh` copies it). Demo mode reads `public/market-sample.json` if present.

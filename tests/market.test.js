@@ -41,3 +41,31 @@ test('moves, movers, breadth, sectors', () => {
   assert.equal(s[0].name, 'Tech'); assert.ok(Math.abs(s[0].chg - 0.05) < 1e-9); assert.equal(s[0].industries[0].name, 'Chips');
   assert.equal(vixZone(31).label, 'Fear'); assert.equal(vixZone(14).label, 'Calm');
 });
+
+import { calendarFrom } from '../shared/market.js';
+test('calendar: only covered symbols, US medium/high events, rating changes, insider buys and sells over $50K', () => {
+  const covered = new Set(['DELL', 'NVDA']);
+  const c = calendarFrom({
+    earnings: [{ symbol: 'DELL', date: '2026-11-24', epsEstimated: 6.6, epsActual: 9.45 }, { symbol: 'ALGRF', date: '2026-11-30' }],
+    economy: [{ date: '2026-11-25 13:30:00', country: 'US', event: 'GDP', impact: 'High', previous: 2.2, estimate: 3.5, actual: 4.3 }, { date: '2026-11-25 13:30:00', country: 'TN', event: 'CPI', impact: 'Low' }],
+    grades: [{ symbol: 'NVDA', action: 'upgrade', gradingCompany: 'X', previousGrade: 'Hold', newGrade: 'Buy', publishedDate: '2026-11-25T12:00:00Z' },
+      { symbol: 'NVDA', action: 'upgrade', gradingCompany: 'X', previousGrade: 'Hold', newGrade: 'Buy', publishedDate: '2026-11-25T13:00:00Z' },
+      { symbol: 'NVDA', action: 'hold', gradingCompany: 'Y' }],
+    insiders: [{ symbol: 'NVDA', transactionType: 'S-Sale', securitiesTransacted: 1000, price: 150, filingDate: '2026-11-23' },
+      { symbol: 'NVDA', transactionType: 'P-Purchase', securitiesTransacted: 100, price: 150, filingDate: '2026-11-23' },
+      { symbol: 'NVDA', transactionType: 'M-Exempt', securitiesTransacted: 1e6, price: 1, filingDate: '2026-11-23' }],
+  }, covered);
+  assert.deepEqual(c.earnings.map((e) => e.symbol), ['DELL']);
+  assert.equal(c.economy.length, 1); assert.equal(c.economy[0].at, '2026-11-25T13:30:00Z');
+  assert.equal(c.ratings.length, 1); assert.equal(c.ratings[0].action, 'up');
+  assert.equal(c.insiders.length, 1); assert.equal(c.insiders[0].kind, 'sell'); assert.equal(c.insiders[0].value, 150000);
+});
+
+test('calendar keeps earlier rating changes and insider trades for 8 days', () => {
+  const now = new Date('2026-11-25T12:00:00Z');
+  const prev = { ratings: [{ symbol: 'NVDA', at: '2026-11-22T10:00:00Z', firm: 'A', action: 'up' }, { symbol: 'NVDA', at: '2026-11-10T10:00:00Z', firm: 'B', action: 'up' }],
+    insiders: [{ symbol: 'NVDA', filed: '2026-11-21', who: 'X', date: '2026-11-20', kind: 'buy', shares: 1 }] };
+  const c = calendarFrom({ grades: [{ symbol: 'NVDA', action: 'downgrade', gradingCompany: 'C', publishedDate: '2026-11-25T09:00:00Z' }] }, new Set(['NVDA']), prev, now);
+  assert.deepEqual(c.ratings.map((r) => r.firm), ['C', 'A']);
+  assert.equal(c.insiders.length, 1);
+});

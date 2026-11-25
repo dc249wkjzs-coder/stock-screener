@@ -1,8 +1,9 @@
 // market-today: every 10 minutes (pg_cron), one snapshot of the market for the "Market today" page, stored in scr_market.
 // About 24 FMP calls a run: 15 quotes, 5 intraday charts, 2 price lists (stocks, ETFs), news, market hours.
+// Once an hour also ~9 more for 'This week' (earnings, economic calendar, analyst rating changes, insider trades) → row 'calendar'.
 // verify_jwt false; checks x-job-token against Vault screener_job_token (same as screener-sync).
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { TILES, marketStatus, sessionDate, prevClose, movesFrom, nyToUtc, nyParts } from './lib/market.js';
+import { TILES, marketStatus, sessionDate, prevClose, movesFrom, nyToUtc, nyParts, calendarFrom } from './lib/market.js';
 
 const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 const secret = async (name: string) => (await sb.rpc('scr_secret', { secret_name: name })).data as string;
@@ -80,7 +81,33 @@ async function run() {
     quotes, moves, counts: { stocks: Object.keys(moves.stocks).length, etfs: Object.keys(moves.etfs).length }, news, errors };
   const { error } = await sb.from('scr_market').upsert({ id: 'today', data, updated_at: now.toISOString() });
   if (error) throw error;
-  return { session, state: status.state, stocks: data.counts.stocks, etfs: data.counts.etfs, news: news.length, errors };
+
+  // 4. Hourly: this week's calendars (they change slowly).
+  let calendar = null;
+  const { data: calRow } = await sb.from('scr_market').select('updated_at,data').eq('id', 'calendar').maybeSingle();
+  if (!calRow || Date.parse(calRow.updated_at) < now.getTime() - 55 * 60_000) {
+    const day = (n: number) => new Date(now.getTime() + n * 864e5).toISOString().slice(0, 10);
+    const pages = async (path: string, n: number) => {
+      const out: unknown[] = [];
+      for (let p = 0; p < n; p++) {   // some lists allow only page 0 on Starter: keep what came back
+        let rows: unknown[];
+        try { rows = await fmp(path, { page: String(p), limit: '100' }, key); } catch (e) { if (p === 0) throw e; break; }
+        out.push(...rows); if (rows.length < 100) break;
+      }
+      return out;
+    };
+    const raw = {
+      earnings: await safe('earnings', () => fmp('earnings-calendar', { from: day(-3), to: day(8) }, key), []),
+      economy: await safe('economy', () => fmp('economic-calendar', { from: day(-2), to: day(8) }, key), []),
+      grades: await safe('ratings', () => pages('grades-latest-news', 1), []),
+      insiders: await safe('insiders', () => pages('insider-trading/latest', 4), []),
+    };
+    const cal = calendarFrom(raw, new Set(Object.keys(last2)), calRow?.data || null, now);
+    const { error: e2 } = await sb.from('scr_market').upsert({ id: 'calendar', data: { updatedAt: now.toISOString(), ...cal }, updated_at: now.toISOString() });
+    if (e2) throw e2;
+    calendar = { earnings: cal.earnings.length, economy: cal.economy.length, ratings: cal.ratings.length, insiders: cal.insiders.length };
+  }
+  return { session, state: status.state, stocks: data.counts.stocks, etfs: data.counts.etfs, news: news.length, calendar, errors };
 }
 
 Deno.serve(async (req) => {
