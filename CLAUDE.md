@@ -110,8 +110,12 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   every 10 min via `scr_market_run()`, ~24 FMP calls) writes one row `scr_market.id='today'`: 15 tile quotes (one `quote` call each;
   Starter has no batch quotes) + 5-min intraday charts for the 4 indexes and 1-hour for S&P futures, `company-screener` prices for
   stocks and ETFs over $500M → `moves` {symbol: [change, price]} vs the last stored close before the session (`scr_last_closes()`),
-  `news/general-latest` (24), `exchange-market-hours`. Page computes sectors/industries (market-cap weighted), breadth and
-  gainers/losers from `moves` + `d.stocks`/`d.etfs`; re-reads the row every 2 min. Not on Starter (402): WTI (CLUSD), nat gas,
+  `news/general-latest` (24), `exchange-market-hours`. Layout (2026-11-25 v2, after Jameson's TradingView screenshot): right = watchlist
+  (Indices incl. VIX, Futures, Commodities, Bonds/dollar/crypto; click a row → quote detail with intraday chart, ranges, glossary line);
+  middle = list chips (All stocks = 500 largest, Top gainers / Biggest losers = 100, Most active = dollar volume, 52-week high/low
+  within 2%, ETFs = 200 largest non-leveraged) → **market map** (`shared/treemap.js` squarified treemap, tiles sized by market
+  value / fund size, grouped by sector / ETF kind, coloured ±3%; tests `tests/treemap.test.js`) or List view; click a tile → company
+  card on the right (desktop) or the full page (phone). `moves` entries are [change, price, volume]. Re-reads the row every 2 min. Not on Starter (402): WTI (CLUSD), nat gas,
   copper, Nasdaq/Dow/Russell futures, 10-yr yield (^TNX), dollar index → ETF stand-ins USO, UNG, CPER, TLT, UUP (marked "via").
   Holidays: `NYSE_HOLIDAYS`/`EARLY_CLOSE` in shared/market.js (FMP's list lacked Thanksgiving): **extend for 2028**.
   Deploy: files `index.ts` + `lib/market.js` (`scripts/sync-function-lib.sh` copies it). Demo mode reads `public/market-sample.json` if present.

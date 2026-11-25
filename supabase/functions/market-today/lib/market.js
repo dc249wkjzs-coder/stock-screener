@@ -88,7 +88,8 @@ export function prevClose(last2, session) {
   return before.length ? before[before.length - 1][1] : null;
 }
 
-// {symbol: [changeFraction, price]} from one price per symbol and its previous close. Moves over ±90% are dropped as bad data.
+// {symbol: [changeFraction, price, volume?]} from one price per symbol and its previous close (volume = shares traded today,
+// when the price list gives it). Moves over ±90% are dropped as bad data.
 export function movesFrom(rows, prevBySymbol) {
   const out = {};
   for (const r of rows) {
@@ -96,7 +97,8 @@ export function movesFrom(rows, prevBySymbol) {
     if (!(p > 0) || !(prev > 0)) continue;
     const chg = p / prev - 1;
     if (Math.abs(chg) > 0.9) continue;
-    out[r.symbol] = [Math.round(chg * 1e5) / 1e5, p];
+    const v = Number(r.volume);
+    out[r.symbol] = v > 0 ? [Math.round(chg * 1e5) / 1e5, p, v] : [Math.round(chg * 1e5) / 1e5, p];
   }
   return out;
 }

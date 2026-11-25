@@ -16,7 +16,7 @@ export const GROUPS = [
   ['10 · Company filings', ['financing', 'shelf', 'prospectus', 'atm', 'convertible', 'new-company']],
   ['11 · Using this site', ['presets', 'investor-strategies', 'prospects', 'best-matches', 'portfolio-score', 'backtest']],
   ['12 · ETFs (funds)', ['etf', 'expense-ratio', 'fund-size', 'etf-category', 'leveraged-etf']],
-  ['13 · The market today', ['market-today', 'index', 'futures', 'vix', 'breadth', 'sector-map', 'gold', 'oil', 'copper', 'treasuries', 'dollar', 'bitcoin', 'market-hours']],
+  ['13 · The market today', ['market-today', 'index', 'futures', 'vix', 'sector-map', 'gold', 'oil', 'copper', 'treasuries', 'dollar', 'bitcoin', 'market-hours']],
 ]
 
 export const TERMS = {
@@ -748,10 +748,10 @@ export const TERMS = {
   // ---------- 13 · The market today
   'market-today': {
     term: 'Market today',
-    simple: 'One page with the state of the market: indexes, futures, the fear gauge, commodities, which sectors are up or down, the biggest movers and the headlines.',
+    simple: 'One page with the state of the market: indexes, futures, the fear gauge and commodities on the right, a market map of today\'s moves in the middle, and the headlines.',
     like: 'The departures board at an airport: a quick look tells you what is on time and what is delayed.',
     example: 'S&P 500 −0.5%, VIX up 17% to 31, Technology the weakest sector, gold down: a nervous day led by tech selling.',
-    rule: 'Refreshed every 10 minutes. Moves are measured from the previous trading day\'s close. Gainers, losers and sectors use the stocks and ETFs over $500M that the rest of the site covers.',
+    rule: 'Refreshed every 10 minutes. Moves are measured from the previous trading day\'s close. The lists (all stocks, gainers, losers, most active, 52-week highs and lows, ETFs) use the stocks and ETFs over $500M that the rest of the site covers.',
     watch: 'One day\'s move says little about a business. Use it for context and timing, not as a reason to buy or sell on its own.',
     where: 'Market today (sidebar, Discover).',
   },
@@ -781,20 +781,13 @@ export const TERMS = {
     watch: 'It shows how bumpy the ride is expected to be, not which way the market will go. Very high readings have often come near short-term lows, but not always.',
     where: 'Market today (gauge).',
   },
-  breadth: {
-    term: 'Market breadth (up vs down)',
-    simple: 'How many stocks rose and how many fell today.',
-    like: 'Asking how many players scored, not just the final score.',
-    example: 'The S&P 500 is up 0.3%, but 1,900 of 2,875 stocks fell: a few giants are carrying the index.',
-    rule: 'Broad gains (most stocks up) are a healthier sign than an index pushed up by a handful of very large companies.',
-    where: 'Market today.',
-  },
   'sector-map': {
-    term: 'Sector map',
-    simple: 'The 11 sectors coloured by today\'s move: greener = up more, redder = down more.',
-    like: 'A weather map: you see at a glance where it is sunny and where it is raining.',
-    example: 'Technology −2.1% in deep red while Utilities and Consumer Defensive are green: money is moving from growth to safer businesses.',
-    rule: 'Each sector\'s move is weighted by company size, so large companies count more (like the S&P 500). Click a sector to see its industries.',
+    term: 'Market map (tiles)',
+    simple: 'Every company in the chosen list as a tile: the bigger the company, the bigger the tile; green = up today, red = down, grey = little change.',
+    like: 'A periodic table where the size of each box shows how much it weighs in the market.',
+    example: 'In "All stocks", Apple and NVIDIA are huge tiles. If Technology is a sea of red while Healthcare is green, money is moving out of tech today.',
+    rule: 'Tiles are grouped by sector (ETFs by kind) and coloured up to ±3%; the number by each sector name is its move weighted by company size, like the S&P 500. Click a tile for that company\'s figures.',
+    watch: 'Size is company value, so a 20% jump in a small company makes a small tile. Use the List view to see the moves in order.',
     where: 'Market today.',
   },
   gold: {
