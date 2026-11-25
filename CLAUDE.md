@@ -105,7 +105,7 @@ FMP Starter API ──► Supabase Edge Function `screener-sync` (run by pg_cron
   alone); an ETF counts as up to 50 holdings in the effective number and spreads its weight by its sector mix (bonds/commodities one
   bucket); cost line = weighted expense ratio; leveraged funds flagged. No holdings/overlap: ETF holdings need FMP Ultimate.
   Tests `tests/etf.test.js`. Glossary section 12.
-- **Market today** (2026-11-25, `/market`, first item under Discover; `src/pages/MarketToday.jsx`, `shared/market.js`, tests
+- **Market today** (2026-11-25, `/market`, first item under Discover (Discover is the top sidebar section, above Build a portfolio); `src/pages/MarketToday.jsx`, `shared/market.js`, tests
   `tests/market.test.js`, glossary section 13). Edge Function `market-today` (verify_jwt false, x-job-token; cron `market-today`
   every 10 min via `scr_market_run()`, ~24 FMP calls) writes one row `scr_market.id='today'`: 15 tile quotes (one `quote` call each;
   Starter has no batch quotes) + 5-min intraday charts for the 4 indexes and 1-hour for S&P futures, `company-screener` prices for
